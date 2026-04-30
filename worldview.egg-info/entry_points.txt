@@ -1,0 +1,2 @@
+[console_scripts]
+worldview-snapshot = worldview.cli:main

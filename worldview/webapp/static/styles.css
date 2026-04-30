@@ -1,0 +1,173 @@
+/* Worldview — local dashboard. Lightweight, minimal chrome. */
+
+:root {
+  --bg: #fafaf8;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --line: #d8d8d2;
+  --card: #ffffff;
+  --accent: #1a6cb0;
+  --buy: #2e7d32;
+  --caution: #d68910;
+  --trap: #6c3483;
+  --bubble: #c0392b;
+  --na: #888;
+  --flag: #fff3cd;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+header h1 a { color: inherit; text-decoration: none; }
+header nav a { color: var(--accent); text-decoration: none; margin-right: 16px; }
+header button {
+  border: 1px solid var(--line); background: var(--card); padding: 6px 12px;
+  border-radius: 4px; cursor: pointer; font: inherit;
+}
+header button:hover:not(:disabled) { background: #f0f0e8; }
+header button:disabled { opacity: 0.6; cursor: wait; }
+header .refresh-group { display: inline-flex; align-items: center; gap: 6px; }
+header select {
+  border: 1px solid var(--line); background: var(--card); padding: 5px 8px;
+  border-radius: 4px; font: inherit; cursor: pointer;
+}
+header select:disabled { opacity: 0.6; cursor: wait; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+footer {
+  text-align: center; padding: 16px; color: var(--muted);
+  border-top: 1px solid var(--line); margin-top: 32px;
+}
+footer code { font-family: ui-monospace, monospace; }
+
+.hero {
+  display: grid; grid-template-columns: 280px 1fr; gap: 24px; margin-bottom: 32px;
+}
+.score-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+  padding: 20px; text-align: center;
+}
+.score-label { font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+.score-value { font-size: 56px; font-weight: 300; margin: 8px 0 4px; }
+.score-help { font-size: 12px; color: var(--muted); }
+
+.flags {
+  background: var(--flag); border: 1px solid #e0c97f; border-radius: 6px; padding: 16px 20px;
+}
+.flags h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+.flags ul { list-style: none; padding: 0; margin: 0; }
+.flags li { padding: 4px 0; font-size: 13px; }
+.flags .dim { color: var(--muted); margin-left: 6px; }
+.flags .streak {
+  display: inline-block; padding: 1px 6px; margin-left: 4px;
+  background: rgba(192, 57, 43, 0.12); color: #8b0000;
+  border-radius: 3px; font-size: 11px; font-weight: 600;
+}
+
+h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 32px 0 12px; }
+
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;
+}
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px;
+  border-left: 4px solid var(--na);
+}
+.card.quadrant-buy     { border-left-color: var(--buy); }
+.card.quadrant-caution { border-left-color: var(--caution); }
+.card.quadrant-trap    { border-left-color: var(--trap); }
+.card.quadrant-bubble  { border-left-color: var(--bubble); }
+
+.card header { display: flex; justify-content: space-between; align-items: baseline; padding: 0; border: none; background: none; }
+.card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.quadrant-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f0f0e8; color: var(--fg); }
+.card dl { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; row-gap: 2px; margin: 8px 0; font-size: 13px; }
+.card dt { color: var(--muted); }
+.card dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+table {
+  width: 100%; border-collapse: collapse; background: var(--card);
+  border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+}
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); font-size: 13px; }
+th { background: #f0f0e8; font-weight: 600; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+table.sortable th { cursor: pointer; user-select: none; position: relative; }
+table.sortable th:hover { background: #e6e6dc; color: var(--fg); }
+table.sortable th.sort-asc::after  { content: " ▲"; font-size: 9px; color: var(--accent); }
+table.sortable th.sort-desc::after { content: " ▼"; font-size: 9px; color: var(--accent); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.row-flag { background: var(--flag); }
+tr:last-child td { border-bottom: none; }
+tbody a { color: var(--accent); text-decoration: none; }
+tbody a:hover { text-decoration: underline; }
+
+.dim { color: var(--muted); }
+code { font-family: ui-monospace, monospace; background: #f0f0e8; padding: 1px 4px; border-radius: 3px; }
+
+/* Quadrant legend on snapshot page. */
+.legend { margin-bottom: 28px; }
+.legend p { margin: 0 0 10px; font-size: 13px; max-width: 800px; }
+.legend-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.legend-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+  padding: 10px 12px; border-left: 4px solid var(--na);
+}
+.legend-card.buy     { border-left-color: var(--buy); }
+.legend-card.caution { border-left-color: var(--caution); }
+.legend-card.trap    { border-left-color: var(--trap); }
+.legend-card.bubble  { border-left-color: var(--bubble); }
+.legend-card h3 {
+  font-size: 13px; margin: 0 0 4px; display: flex;
+  justify-content: space-between; align-items: baseline; font-weight: 700;
+}
+.legend-card .legend-coords {
+  font-weight: 400; color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
+}
+.legend-card p { font-size: 12px; line-height: 1.4; margin: 0; }
+.legend-card em { color: #555; font-style: italic; }
+@media (max-width: 900px) { .legend-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* Field cards: dotted underline cue that there's a tooltip on hover. */
+.field.card { cursor: help; }
+
+/* Metric drill-down meta block. */
+.metric-detail .lede {
+  font-size: 14px; max-width: 800px; padding: 10px 14px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+}
+.metric-detail .metric-meta {
+  display: grid; grid-template-columns: max-content 1fr;
+  column-gap: 16px; row-gap: 6px; max-width: 800px; margin: 16px 0 24px;
+  font-size: 13px;
+}
+.metric-detail .metric-meta dt { color: var(--muted); font-weight: 600; }
+.metric-detail .metric-meta dd { margin: 0; }
+.metric-detail .metric-meta dd .dim { display: block; font-size: 12px; margin-top: 2px; }
+
+/* History page overlay toggles. */
+.overlay-controls {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  margin: 8px 0 12px; font-size: 13px;
+}
+.overlay-controls strong { color: var(--muted); font-weight: 600; }
+.overlay-controls label {
+  display: inline-flex; gap: 4px; align-items: center; cursor: pointer;
+  user-select: none; padding: 4px 10px; border: 1px solid var(--line);
+  border-radius: 14px; background: var(--card);
+}
+.overlay-controls input { margin: 0; }

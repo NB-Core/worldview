@@ -1,0 +1,873 @@
+# Worldview metric registry.
+#
+# Schema (one row per metric):
+#   id            : stable snake_case identifier (used as PK in SQLite)
+#   category      : valuation | sentiment | macro | geo | energy | breadth
+#   field         : overall | ai | construction | finance | energy | defense | defensive
+#   source        : fred | yfinance | cnn_fng | gpr_iacoviello | multpl | derived
+#   source_ref    : ticker / FRED series id / URL slug / derived-recipe key
+#   polarity      : meaning of HIGH values for this metric
+#                   - valuation : "expensive" or "cheap"
+#                   - sentiment : "greedy"   or "fearful"
+#                   - macro     : "stressed" or "healthy"
+#                   - energy    : "expensive" or "cheap"
+#   cadence       : daily | weekly | monthly | quarterly
+#   flag_high_pct : surface as a flag when current percentile >= this  (null = off)
+#   flag_low_pct  : surface as a flag when current percentile <= this  (null = off)
+#   weight        : weight in field rollups (default 1.0)
+#   notes         : free text for humans
+
+metrics:
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # OVERALL — Valuation
+  # ══════════════════════════════════════════════════════════════════════════
+  # NOTE: FRED retired every public Wilshire 5000 series in 2026
+  # (WILL5000PR/PRFC/IND/INDFC all return 'does not exist' or 500). The
+  # Buffett Indicator now uses S&P 500 / GDP as a >95%-correlated proxy via
+  # the `sp500_div_gdp` derived recipe.
+
+  - id: us_gdp
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "GDP"
+    polarity: healthy
+    cadence: quarterly
+    weight: 0.3
+    notes: "US Nominal GDP, billions USD, quarterly."
+
+  - id: buffett_indicator
+    category: valuation
+    field: overall
+    source: derived
+    source_ref: sp500_div_gdp
+    polarity: expensive
+    cadence: daily
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.5
+    notes: "Buffett Indicator (S&P 500 / US GDP variant). The market-cap-to-economy ratio Buffett called 'probably the best single measure of where valuations stand'. We use S&P 500 as the numerator since FRED has retired every public Wilshire 5000 series — the percentile ranking is unaffected (>95% correlation)."
+
+  - id: equity_risk_premium
+    category: valuation
+    field: overall
+    source: derived
+    source_ref: earnings_yield_minus_10y
+    polarity: cheap         # high ERP = stocks cheap vs bonds
+    cadence: daily
+    flag_low_pct: 10
+    weight: 1.2
+    notes: "Equity Risk Premium proxy: S&P 500 earnings yield minus 10Y Treasury. Negative = stocks priced for returns below cash; historically a warning."
+
+  - id: hy_minus_ig_oas
+    category: sentiment
+    field: overall
+    source: derived
+    source_ref: hy_minus_ig
+    polarity: fearful
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "Junk minus IG credit spread. Widening = credit market punishing weaker balance sheets first; often leads equity drawdowns."
+
+  - id: ny_fed_recession_prob
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "RECPROUSM156N"
+    polarity: stressed
+    cadence: monthly
+    flag_high_pct: 85
+    weight: 1.0
+    notes: "NY Fed 12-month-ahead recession probability from the yield curve. >30% has historically preceded every modern US recession."
+
+  - id: sofr
+    category: macro
+    field: finance
+    source: fred
+    source_ref: "SOFR"
+    polarity: stressed
+    cadence: daily
+    weight: 0.5
+    notes: "Secured Overnight Financing Rate. Spikes flag dollar-funding stress; typical level mirrors Fed Funds."
+
+  - id: shiller_cape_us
+    category: valuation
+    field: overall
+    source: multpl
+    source_ref: "shiller-pe"
+    polarity: expensive
+    cadence: monthly
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.5
+    notes: "Shiller cyclically-adjusted P/E (CAPE). Long-horizon US valuation."
+
+  - id: sp500_pe
+    category: valuation
+    field: overall
+    source: multpl
+    source_ref: "s-p-500-pe-ratio"
+    polarity: expensive
+    cadence: weekly
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "S&P 500 trailing P/E."
+
+  - id: sp500_div_yield
+    category: valuation
+    field: overall
+    source: multpl
+    source_ref: "s-p-500-dividend-yield"
+    polarity: cheap          # high yield = cheap (for risk assets the contrary)
+    cadence: weekly
+    weight: 0.8
+    notes: "S&P 500 dividend yield (%). Inversely related to expensiveness."
+
+  - id: sp500_close
+    category: valuation
+    field: overall
+    source: yfinance
+    source_ref: "^GSPC"
+    polarity: expensive
+    cadence: daily
+    weight: 0.5
+    notes: "S&P 500 spot price reference."
+
+  - id: stoxx600_close
+    category: valuation
+    field: overall
+    source: yfinance
+    source_ref: "^STOXX"
+    polarity: expensive
+    cadence: daily
+    weight: 0.5
+    notes: "Stoxx Europe 600 spot price reference."
+
+  - id: nasdaq_close
+    category: valuation
+    field: overall
+    source: yfinance
+    source_ref: "^IXIC"
+    polarity: expensive
+    cadence: daily
+    weight: 0.5
+    notes: "Nasdaq Composite spot price reference. Tech-heavy US benchmark."
+
+  # ── breadth (overall) ─────────────────────────────────────────────────────
+  - id: spy
+    category: breadth
+    field: overall
+    source: yfinance
+    source_ref: "SPY"
+    polarity: healthy
+    cadence: daily
+    weight: 0.5
+    notes: "Cap-weighted S&P 500 ETF."
+
+  - id: rsp
+    category: breadth
+    field: overall
+    source: yfinance
+    source_ref: "RSP"
+    polarity: healthy
+    cadence: daily
+    weight: 0.5
+    notes: "Equal-weighted S&P 500 ETF."
+
+  - id: rsp_spy_ratio
+    category: breadth
+    field: overall
+    source: derived
+    source_ref: rsp_div_spy
+    polarity: healthy        # rising RSP/SPY = breadth healthy
+    cadence: daily
+    flag_low_pct: 10
+    weight: 1.0
+    notes: "RSP/SPY ratio. Rising = broadening rally; falling = narrow Mag-7 leadership."
+
+  # ── Index concentration (slickcharts S&P 500 weights) ─────────────────────
+  # Each of these is one observation per snapshot. History builds up over
+  # repeated runs; expect percentiles to be unstable for the first few weeks.
+  - id: sp500_top10_share
+    category: valuation
+    field: overall
+    source: ishares
+    source_ref: top_10_share
+    polarity: expensive      # rising concentration = unhealthy market structure
+    cadence: daily
+    flag_high_pct: 90
+    weight: 0.8
+    notes: "Sum of weights of top 10 S&P 500 names (%). High = narrow market — 'when 5 stocks do all the lifting'."
+
+  - id: sp500_mag7_share
+    category: valuation
+    field: overall
+    source: ishares
+    source_ref: mag7_share
+    polarity: expensive
+    cadence: daily
+    flag_high_pct: 90
+    weight: 0.8
+    notes: "Combined S&P 500 weight of Mag-7 (NVDA, MSFT, GOOGL+GOOG, AMZN, META, AAPL, TSLA). Concentration risk gauge."
+
+  - id: nvda_sp500_share
+    category: valuation
+    field: ai
+    source: ishares
+    source_ref: nvda_share
+    polarity: expensive
+    cadence: daily
+    flag_high_pct: 95
+    weight: 1.0
+    notes: "Nvidia's weight in the S&P 500 (%). Single-name concentration: how much of the index *is* one chip company."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # OVERALL — Sentiment
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: vix
+    category: sentiment
+    field: overall
+    source: yfinance
+    source_ref: "^VIX"
+    polarity: fearful
+    cadence: daily
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.5
+    notes: "30-day implied vol on S&P 500. High = fear."
+
+  - id: vvix
+    category: sentiment
+    field: overall
+    source: yfinance
+    source_ref: "^VVIX"
+    polarity: fearful
+    cadence: daily
+    flag_high_pct: 90
+    weight: 0.8
+    notes: "Vol of vol. Tail-risk pricing."
+
+  - id: move
+    category: sentiment
+    field: overall
+    source: yfinance
+    source_ref: "^MOVE"
+    polarity: fearful
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "ICE BofA MOVE — bond-market vol. Often leads VIX."
+
+  - id: cnn_fear_greed
+    category: sentiment
+    field: overall
+    source: cnn_fng
+    source_ref: "default"
+    polarity: greedy
+    cadence: daily
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.2
+    notes: "CNN Fear & Greed composite (0=panic, 100=euphoria)."
+
+  - id: aaii_bull_bear_spread
+    category: sentiment
+    field: overall
+    source: aaii
+    source_ref: ""
+    polarity: greedy
+    cadence: weekly
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.0
+    notes: "AAII weekly Bull-Bear spread (% bullish minus % bearish). Direct retail-investor positioning. Extreme positives mark retail-greed peaks; extreme negatives mark capitulation troughs."
+
+  # NAAIM Exposure Index — disabled by default. NAAIM reorganized their site
+  # in early 2026 and the data xlsx no longer has a stable public URL.
+  # To enable: visit naaim.org, find the current 'Exposure Index Data' xlsx
+  # link, and paste it into `source_ref:` below. Then change `source: naaim_disabled`
+  # back to `source: naaim`. Fetcher + tests are ready.
+  - id: naaim_exposure
+    category: sentiment
+    field: overall
+    source: naaim_disabled
+    source_ref: ""
+    polarity: greedy
+    cadence: weekly
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.0
+    notes: "NAAIM Exposure Index — mean equity exposure (-200% to +200%) reported weekly by active managers. Currently disabled — see comment in metrics.yaml to re-enable."
+
+  - id: hy_oas_us
+    category: sentiment
+    field: overall
+    source: fred
+    source_ref: "BAMLH0A0HYM2"
+    polarity: fearful
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.5
+    notes: "ICE BofA US High Yield OAS. Best single credit-stress gauge."
+
+  - id: ig_oas_us
+    category: sentiment
+    field: overall
+    source: fred
+    source_ref: "BAMLC0A0CM"
+    polarity: fearful
+    cadence: daily
+    weight: 0.8
+    notes: "ICE BofA US Investment Grade OAS."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # OVERALL — Macro
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: us_10y
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "DGS10"
+    polarity: stressed
+    cadence: daily
+    flag_high_pct: 95
+    weight: 1.0
+    notes: "US 10Y Treasury yield."
+
+  - id: us_2s10s
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "T10Y2Y"
+    polarity: healthy
+    cadence: daily
+    flag_low_pct: 10
+    weight: 1.0
+    notes: "10Y - 2Y. Inversion is the classic recession signal."
+
+  - id: us_3m10y
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "T10Y3M"
+    polarity: healthy
+    cadence: daily
+    flag_low_pct: 10
+    weight: 1.0
+    notes: "10Y - 3M. Strongest historical recession signal."
+
+  - id: us_real_10y
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "DFII10"
+    polarity: stressed
+    cadence: daily
+    weight: 1.0
+    notes: "10Y TIPS real yield."
+
+  - id: us_5y5y_breakeven
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "T5YIFR"
+    polarity: stressed
+    cadence: daily
+    weight: 0.8
+    notes: "5y5y forward breakeven. Long-horizon inflation expectations."
+
+  - id: dxy
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "DTWEXBGS"
+    polarity: stressed
+    cadence: daily
+    weight: 0.8
+    notes: "Trade-weighted broad USD index. Strong USD = global liquidity tightening."
+
+  - id: us_unemployment
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "UNRATE"
+    polarity: stressed
+    cadence: monthly
+    weight: 1.0
+    notes: "US unemployment rate."
+
+  - id: us_initial_claims
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "ICSA"
+    polarity: stressed
+    cadence: weekly
+    weight: 0.8
+    notes: "Initial unemployment claims, weekly."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # GEOPOLITICAL
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: gpr_daily
+    category: geo
+    field: overall
+    source: gpr_iacoviello
+    source_ref: ""           # blank → fetcher uses its built-in URL
+    polarity: stressed
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "Caldara & Iacoviello Geopolitical Risk Index, daily."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # AI / SEMIS
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: smh
+    category: valuation
+    field: ai
+    source: yfinance
+    source_ref: "SMH"
+    polarity: expensive
+    cadence: daily
+    weight: 1.0
+    notes: "VanEck Semiconductor ETF — AI-cycle proxy."
+
+  - id: nvda
+    category: valuation
+    field: ai
+    source: yfinance
+    source_ref: "NVDA"
+    polarity: expensive
+    cadence: daily
+    weight: 1.0
+    notes: "Nvidia spot. Single-name concentration risk."
+
+  - id: xlk
+    category: sentiment
+    field: ai
+    source: yfinance
+    source_ref: "XLK"
+    polarity: greedy
+    cadence: daily
+    weight: 0.8
+    notes: "Tech sector ETF spot."
+
+  - id: xlu
+    category: sentiment
+    field: defensive
+    source: yfinance
+    source_ref: "XLU"
+    polarity: greedy        # rising XLU within defensive = healthy demand for safety
+    cadence: daily
+    weight: 0.8
+    notes: "Utilities ETF spot. Power-demand proxy + defensive."
+
+  - id: xlk_xlu_ratio
+    category: sentiment
+    field: ai
+    source: derived
+    source_ref: xlk_div_xlu
+    polarity: greedy
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.2
+    notes: "XLK/XLU. Rising = AI optimism dominating; falling = rotation toward power scarcity."
+
+  - id: arkk
+    category: sentiment
+    field: ai
+    source: yfinance
+    source_ref: "ARKK"
+    polarity: greedy
+    cadence: daily
+    weight: 0.8
+    notes: "ARK Innovation ETF — speculative-pulse retail proxy."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # BUILDING & CONSTRUCTION
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: housing_starts
+    category: macro
+    field: construction
+    source: fred
+    source_ref: "HOUST"
+    polarity: healthy
+    cadence: monthly
+    weight: 1.0
+    notes: "US new privately-owned housing starts."
+
+  - id: building_permits
+    category: macro
+    field: construction
+    source: fred
+    source_ref: "PERMIT"
+    polarity: healthy
+    cadence: monthly
+    weight: 1.0
+    notes: "US building permits — leading indicator for starts."
+
+  - id: mortgage_30y
+    category: macro
+    field: construction
+    source: fred
+    source_ref: "MORTGAGE30US"
+    polarity: stressed
+    cadence: weekly
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "30-year fixed mortgage rate. High = housing demand crushed."
+
+  - id: itb
+    category: valuation
+    field: construction
+    source: yfinance
+    source_ref: "ITB"
+    polarity: expensive
+    cadence: daily
+    weight: 1.0
+    notes: "iShares US Home Construction ETF."
+
+  - id: xhb
+    category: sentiment
+    field: construction
+    source: yfinance
+    source_ref: "XHB"
+    polarity: greedy
+    cadence: daily
+    weight: 0.8
+    notes: "SPDR Homebuilders ETF — sentiment-flavored basket."
+
+  - id: lumber
+    category: macro
+    field: construction
+    source: yfinance
+    source_ref: "LBR=F"
+    polarity: stressed
+    cadence: daily
+    weight: 0.6
+    notes: "Lumber futures. High = costs squeezing margins."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FINANCE / BANKS
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: xlf
+    category: valuation
+    field: finance
+    source: yfinance
+    source_ref: "XLF"
+    polarity: expensive
+    cadence: daily
+    weight: 1.0
+    notes: "Financials sector ETF."
+
+  - id: kre
+    category: valuation
+    field: finance
+    source: yfinance
+    source_ref: "KRE"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "Regional banks ETF — duration/credit canary."
+
+  - id: kbe
+    category: valuation
+    field: finance
+    source: yfinance
+    source_ref: "KBE"
+    polarity: expensive
+    cadence: daily
+    weight: 0.6
+    notes: "SPDR Bank ETF (broad US banks)."
+
+  - id: eufn
+    category: valuation
+    field: finance
+    source: yfinance
+    source_ref: "EUFN"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "iShares MSCI Europe Financials ETF."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # ENERGY
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: brent
+    category: energy
+    field: energy
+    source: yfinance
+    source_ref: "BZ=F"
+    polarity: expensive
+    cadence: daily
+    flag_high_pct: 90
+    flag_low_pct: 10
+    weight: 1.0
+    notes: "Brent crude front-month."
+
+  - id: wti
+    category: energy
+    field: energy
+    source: yfinance
+    source_ref: "CL=F"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "WTI crude front-month."
+
+  - id: nat_gas_us
+    category: energy
+    field: energy
+    source: fred
+    source_ref: "DHHNGSP"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "Henry Hub natural gas spot."
+
+  - id: ttf_gas_eu
+    category: energy
+    field: energy
+    source: yfinance
+    source_ref: "TTF=F"
+    polarity: expensive
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "Dutch TTF natural gas — the European gas benchmark. Spikes here drive Euro-area inflation and industrial cost shock; a key Iran-war / Russia-supply read-through."
+
+  - id: xle
+    category: valuation
+    field: energy
+    source: yfinance
+    source_ref: "XLE"
+    polarity: expensive
+    cadence: daily
+    weight: 1.0
+    notes: "Energy sector ETF."
+
+  - id: xop
+    category: valuation
+    field: energy
+    source: yfinance
+    source_ref: "XOP"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "Oil & gas E&P ETF."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # DEFENSE
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: ita
+    category: valuation
+    field: defense
+    source: yfinance
+    source_ref: "ITA"
+    polarity: expensive
+    cadence: daily
+    weight: 1.0
+    notes: "iShares US Aerospace & Defense ETF."
+
+  - id: lmt
+    category: valuation
+    field: defense
+    source: yfinance
+    source_ref: "LMT"
+    polarity: expensive
+    cadence: daily
+    weight: 0.6
+    notes: "Lockheed Martin spot."
+
+  - id: rtx
+    category: valuation
+    field: defense
+    source: yfinance
+    source_ref: "RTX"
+    polarity: expensive
+    cadence: daily
+    weight: 0.6
+    notes: "RTX Corp (Raytheon)."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # DEFENSIVES / SAFE-HAVEN
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: gold
+    category: energy
+    field: defensive
+    source: yfinance
+    source_ref: "GC=F"
+    polarity: expensive
+    cadence: daily
+    flag_high_pct: 95
+    weight: 1.0
+    notes: "Gold front-month. Safe-haven gauge."
+
+  - id: silver
+    category: energy
+    field: defensive
+    source: yfinance
+    source_ref: "SI=F"
+    polarity: expensive
+    cadence: daily
+    weight: 0.6
+    notes: "Silver front-month."
+
+  - id: copper
+    category: energy
+    field: energy
+    source: yfinance
+    source_ref: "HG=F"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "Copper front-month — Dr. Copper."
+
+  - id: gold_copper_ratio
+    category: macro
+    field: overall
+    source: derived
+    source_ref: gold_div_copper
+    polarity: stressed       # gold rises vs copper when growth fears mount
+    cadence: daily
+    weight: 0.8
+    notes: "Gold/Copper. Rising = recession risk pricing."
+
+  - id: gold_oil_ratio
+    category: macro
+    field: overall
+    source: derived
+    source_ref: gold_div_brent
+    polarity: stressed
+    cadence: daily
+    weight: 0.6
+    notes: "Gold/Brent. Rising = energy-stress / hard-asset rotation."
+
+  - id: tlt
+    category: valuation
+    field: defensive
+    source: yfinance
+    source_ref: "TLT"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "iShares 20+ Year Treasury ETF — duration safe haven."
+
+  - id: xlp
+    category: valuation
+    field: defensive
+    source: yfinance
+    source_ref: "XLP"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "Consumer staples ETF."
+
+  - id: xlv
+    category: valuation
+    field: defensive
+    source: yfinance
+    source_ref: "XLV"
+    polarity: expensive
+    cadence: daily
+    weight: 0.8
+    notes: "Healthcare ETF."
+
+  - id: chf_usd
+    category: sentiment
+    field: defensive
+    source: yfinance
+    source_ref: "CHF=X"
+    polarity: fearful        # rising CHF = safe-haven bid = risk-off
+    cadence: daily
+    weight: 0.5
+    notes: "USD/CHF. Lower = stronger Swiss franc = safe-haven flow."
+
+  # ── Speculative-pulse trio (lives in 'overall' sentiment) ────────────────
+  - id: btc_usd
+    category: sentiment
+    field: overall
+    source: yfinance
+    source_ref: "BTC-USD"
+    polarity: greedy
+    cadence: daily
+    weight: 0.6
+    notes: "Bitcoin USD spot — speculative pulse, NOT a safe-haven proxy here."
+
+  - id: mstr
+    category: sentiment
+    field: overall
+    source: yfinance
+    source_ref: "MSTR"
+    polarity: greedy
+    cadence: daily
+    weight: 0.4
+    notes: "MicroStrategy — BTC-leverage proxy. Extreme-greed indicator."
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # EUROZONE
+  # ══════════════════════════════════════════════════════════════════════════
+  - id: de_10y
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "IRLTLT01DEM156N"
+    polarity: stressed
+    cadence: monthly
+    weight: 0.8
+    notes: "Germany 10Y Bund yield (monthly avg from FRED)."
+
+  - id: it_10y
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "IRLTLT01ITM156N"
+    polarity: stressed
+    cadence: monthly
+    weight: 0.6
+    notes: "Italy 10Y BTP yield."
+
+  - id: italy_bund_spread
+    category: macro
+    field: finance
+    source: derived
+    source_ref: italy_minus_bund
+    polarity: stressed
+    cadence: monthly
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "Italy 10Y minus Germany 10Y. Eurozone fragmentation gauge."
+
+  - id: eu_hy_oas
+    category: sentiment
+    field: finance
+    source: fred
+    source_ref: "BAMLHE00EHYIOAS"
+    polarity: fearful
+    cadence: daily
+    flag_high_pct: 90
+    weight: 1.0
+    notes: "ICE BofA Euro HY OAS."
+
+  - id: eu_hicp_yoy
+    category: macro
+    field: overall
+    source: fred
+    source_ref: "CP0000EZ19M086NEST"
+    polarity: stressed
+    cadence: monthly
+    weight: 0.8
+    notes: "Eurozone HICP, YoY proxy (FRED publishes index level — interpret accordingly)."
+
+  - id: eur_usd
+    category: macro
+    field: overall
+    source: yfinance
+    source_ref: "EURUSD=X"
+    polarity: healthy        # rising EUR/USD = falling DXY = looser global liquidity
+    cadence: daily
+    weight: 0.5
+    notes: "EUR/USD spot. Falling = USD strength = global liquidity tightening; rising = the opposite."

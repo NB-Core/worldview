@@ -1,0 +1,25 @@
+# Manual overrides for hyperscaler quarterly capex.
+#
+# yfinance reports `Capital Expenditure` from the cash-flow statement, but:
+#   - It can lag the actual 10-Q filing by a few days.
+#   - Amazon's number includes finance-lease additions (slight overstatement).
+#
+# Any value placed here OVERRIDES the auto-fetched yfinance figure for that
+# (ticker, quarter_end_date). Values are USD (negative or positive — capex is
+# a cash outflow but we store the magnitude as a positive USD amount).
+#
+# Schema:
+#   <TICKER>:
+#     <YYYY-MM-DD>: <usd_amount>
+#
+# Example (uncomment and adjust):
+# MSFT:
+#   2025-12-31: 24500000000
+# AMZN:
+#   2025-12-31: 28000000000   # purchases of P&E only, ex finance leases
+
+MSFT:  {}
+GOOGL: {}
+AMZN:  {}
+META:  {}
+ORCL:  {}

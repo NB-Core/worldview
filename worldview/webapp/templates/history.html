@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Worldview · History{% endblock %}
+
+{% block content %}
+<section class="history">
+  <h2>Worldview Score over time</h2>
+  <p class="dim">
+    The single composite for the <code>overall</code> field, computed for
+    every historical date with an expanding-window percentile against
+    everything that came before. Higher = better entry conditions. Bands
+    shade the regime: red = sell zone, amber = caution, green = buy zone.
+    Toggle stock indexes below to overlay actual market behaviour on a
+    secondary axis.
+  </p>
+
+  <div class="overlay-controls">
+    <strong>Overlay benchmarks:</strong>
+    <label><input type="checkbox" data-id="sp500_close"   checked> S&P 500</label>
+    <label><input type="checkbox" data-id="nasdaq_close"  checked> Nasdaq</label>
+    <label><input type="checkbox" data-id="stoxx600_close"> Stoxx 600</label>
+    <label><input type="checkbox" data-id="gold"> Gold</label>
+    <label><input type="checkbox" data-id="brent"> Brent</label>
+  </div>
+
+  <div id="score-chart" style="height: 480px;"></div>
+
+  <h2>Block scores</h2>
+  <p class="dim">
+    Valuation (expensive → 100), Sentiment (greedy → 100), Macro-risk
+    (stressed → 100). Sentiment crossing 50 is what flips the 2×2 quadrant.
+  </p>
+  <div id="blocks-chart" style="height: 420px;"></div>
+</section>
+
+<script>
+const OVERLAY_COLORS = {
+  sp500_close:    "#1a6cb0",
+  nasdaq_close:   "#8e44ad",
+  stoxx600_close: "#16a085",
+  gold:           "#d4af37",
+  brent:          "#c0392b",
+};
+
+function buildScoreLayout() {
+  return {
+    margin: { l: 50, r: 60, t: 10, b: 40 },
+    yaxis:  { range: [0, 100], title: "Worldview Score (0-100)" },
+    yaxis2: {
+      title: "Index level",
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+      type: "log",
+    },
+    xaxis: { title: "Date" },
+    legend: { orientation: "h", x: 0, y: 1.1 },
+    shapes: [
+      { type: "rect", xref: "paper", x0: 0, x1: 1, y0: 0,  y1: 25,  fillcolor: "#c0392b", opacity: 0.07, line: { width: 0 } },
+      { type: "rect", xref: "paper", x0: 0, x1: 1, y0: 25, y1: 50,  fillcolor: "#d68910", opacity: 0.07, line: { width: 0 } },
+      { type: "rect", xref: "paper", x0: 0, x1: 1, y0: 50, y1: 75,  fillcolor: "#f4d03f", opacity: 0.07, line: { width: 0 } },
+      { type: "rect", xref: "paper", x0: 0, x1: 1, y0: 75, y1: 100, fillcolor: "#2e7d32", opacity: 0.07, line: { width: 0 } },
+    ],
+  };
+}
+
+let coreTraces = [];
+let overlayTraces = {};   // id → trace object
+
+function redraw() {
+  const traces = [...coreTraces, ...Object.values(overlayTraces)];
+  Plotly.react("score-chart", traces, buildScoreLayout(), { responsive: true });
+}
+
+async function fetchOverlay(id) {
+  const r = await fetch(`/api/prices.json?ids=${encodeURIComponent(id)}`);
+  const data = await r.json();
+  const series = (data.series || []).find(s => s.id === id);
+  if (!series || !series.dates.length) return null;
+  return {
+    x: series.dates, y: series.values, mode: "lines",
+    line: { color: OVERLAY_COLORS[id] || "#666", width: 1.2 },
+    name: series.label.split(".")[0].slice(0, 60),
+    yaxis: "y2",
+    hovertemplate: `${series.label}<br>%{x}<br>%{y:,.2f}<extra></extra>`,
+  };
+}
+
+async function init() {
+  // Core: Worldview Score time series
+  const r = await fetch("/api/history.json");
+  const d = await r.json();
+
+  if (!d.dates || d.dates.length === 0) {
+    document.getElementById("score-chart").innerHTML =
+      "<p class='dim' style='padding:24px;'>No history yet — run a snapshot first.</p>";
+    document.getElementById("blocks-chart").innerHTML = "";
+    return;
+  }
+
+  coreTraces = [{
+    x: d.dates, y: d.worldview_score, mode: "lines",
+    line: { color: "#1a1a1a", width: 1.6 },
+    name: "Worldview Score",
+  }];
+
+  // Block-scores chart (separate)
+  Plotly.newPlot("blocks-chart",
+    [
+      { x: d.dates, y: d.valuation,  mode: "lines", name: "Valuation",  line: { color: "#1a6cb0" } },
+      { x: d.dates, y: d.sentiment,  mode: "lines", name: "Sentiment",  line: { color: "#d68910" } },
+      { x: d.dates, y: d.macro_risk, mode: "lines", name: "Macro-risk", line: { color: "#c0392b" } },
+    ],
+    {
+      margin: { l: 50, r: 20, t: 10, b: 40 },
+      yaxis: { range: [0, 100], title: "Percentile" },
+      xaxis: { title: "Date" },
+      shapes: [
+        { type: "line", xref: "paper", x0: 0, x1: 1, y0: 50, y1: 50,
+          line: { dash: "dot", color: "#999", width: 1 } },
+      ],
+      legend: { orientation: "h", x: 0, y: 1.1 },
+    },
+    { responsive: true });
+
+  // Initial render with no overlays, then load defaults.
+  redraw();
+
+  document.querySelectorAll(".overlay-controls input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", async () => {
+      const id = cb.dataset.id;
+      if (cb.checked) {
+        const trace = await fetchOverlay(id);
+        if (trace) overlayTraces[id] = trace;
+      } else {
+        delete overlayTraces[id];
+      }
+      redraw();
+    });
+    if (cb.checked) cb.dispatchEvent(new Event("change"));
+  });
+}
+
+init();
+</script>
+{% endblock %}

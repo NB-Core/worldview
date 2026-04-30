@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Worldview{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header>
+    <h1><a href="/">Worldview</a></h1>
+    <nav>
+      <a href="/">Snapshot</a>
+      <a href="/history">History</a>
+      <span class="refresh-group">
+        <select id="refresh-cadence"
+                title="Higher cadences include lower ones (monthly = monthly + weekly + daily). Use 'all' once to backfill everything; daily for normal updates.">
+          <option value="daily" selected>Daily</option>
+          <option value="weekly">+ Weekly</option>
+          <option value="monthly">+ Monthly</option>
+          <option value="quarterly">+ Quarterly</option>
+          <option value="all">All</option>
+        </select>
+        <button id="refresh-btn" type="button">Refresh</button>
+      </span>
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <small>local · 127.0.0.1 · {{ payload.asof if payload and payload.asof else "no data yet" }}</small>
+  </footer>
+
+  <script>
+    // Cadence-aware refresh. POSTs /api/refresh?cadence=<selected> and
+    // reloads on success. Monthly/All can take a couple of minutes — we
+    // show the selected cadence in the button text so the user knows
+    // what's running.
+    const refreshBtn = document.getElementById("refresh-btn");
+    const cadenceSel = document.getElementById("refresh-cadence");
+    if (refreshBtn && cadenceSel) {
+      refreshBtn.addEventListener("click", async () => {
+        const cadence = cadenceSel.value;
+        const original = refreshBtn.textContent;
+        refreshBtn.disabled = true;
+        cadenceSel.disabled = true;
+        refreshBtn.textContent = `Refreshing (${cadence})…`;
+        const started = Date.now();
+        try {
+          const r = await fetch("/api/refresh?cadence=" + encodeURIComponent(cadence),
+                                { method: "POST" });
+          if (!r.ok) throw new Error("refresh failed: " + r.status);
+          const body = await r.json();
+          const secs = ((Date.now() - started) / 1000).toFixed(1);
+          console.log(`Refresh (${cadence}) done in ${secs}s`, body);
+          location.reload();
+        } catch (e) {
+          alert("Refresh failed: " + e.message);
+          refreshBtn.disabled = false;
+          cadenceSel.disabled = false;
+          refreshBtn.textContent = original;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

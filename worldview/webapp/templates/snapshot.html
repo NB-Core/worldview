@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Worldview · Snapshot{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="score-card" title="Formula: 0.4·(100−Valuation) + 0.3·SentTerm + 0.3·(100−MacroRisk).&#10;Default mode rewards fear monotonically (Buffett-style); macro_risk separately captures whether the regime is breaking.">
+    <div class="score-label">Worldview Score</div>
+    <div class="score-value">
+      {% if payload.worldview_score is not none %}
+        {{ "%.1f"|format(payload.worldview_score) }}
+      {% else %}
+        —
+      {% endif %}
+    </div>
+    <div class="score-help">
+      0 = sell-everything · 100 = back-up-the-truck
+      <br><span class="dim">mode: <code>{{ payload.sentiment_mode }}</code></span>
+    </div>
+  </div>
+
+  {% if payload.flags %}
+  <div class="flags">
+    <h2>Flags right now</h2>
+    <ul>
+      {% for f in payload.flags %}
+      <li>
+        <strong>{{ f.metric_id }}</strong>
+        — {{ f.side }} (pct {{ "%.1f"|format(f.pct) }}, value {{ "%.2f"|format(f.value) }})
+        {% if f.streak and f.streak > 1 %}
+          <span class="streak">· {{ f.streak }} consecutive obs</span>
+        {% endif %}
+        <span class="dim">as of {{ f.date }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</section>
+
+<section class="legend">
+  <h2>Quadrant guide</h2>
+  <p class="dim">
+    Every field card sits in one of four boxes — based on its
+    <strong>Valuation Score</strong> (cheap → expensive) and
+    <strong>Sentiment Score</strong> (fearful → greedy).
+    The action label is shorthand for the typical entry posture:
+  </p>
+  <div class="legend-grid">
+    <article class="legend-card buy">
+      <h3>BUY <span class="legend-coords">val ≤ 50 · sent ≤ 50</span></h3>
+      <p>Cheap on fundamentals <em>and</em> fearful on sentiment — Buffett's preferred entry. Mean-reversion has both factors working with you.</p>
+    </article>
+    <article class="legend-card caution">
+      <h3>CAUTION <span class="legend-coords">val ≤ 50 · sent ≥ 50</span></h3>
+      <p>Cheap on paper but the crowd is already running hot. Late-cycle pile-on risk — the trade may still lift off, but sentiment is no tailwind. <em>Wait for a dip.</em></p>
+    </article>
+    <article class="legend-card trap">
+      <h3>TRAP <span class="legend-coords">val ≥ 50 · sent ≤ 50</span></h3>
+      <p>Expensive <em>and</em> nobody likes it. Cheap-looking screens lie — the market's pricing in trouble, and momentum is gone. Often grinds lower for months.</p>
+    </article>
+    <article class="legend-card bubble">
+      <h3>BUBBLE <span class="legend-coords">val ≥ 50 · sent ≥ 50</span></h3>
+      <p>Expensive <em>and</em> euphoric. Classic late-cycle warning. Reduce, hedge, or stay clear; the asymmetry has flipped against new buyers.</p>
+    </article>
+  </div>
+</section>
+
+<section class="fields">
+  <h2>Fields</h2>
+  <div class="grid">
+    {% for f in payload.fields %}
+    {% set contrib_summary -%}
+      Valuation: {{ ", ".join(payload.field_contributors[f.id].valuation) or "—" }}
+&#10;Sentiment: {{ ", ".join(payload.field_contributors[f.id].sentiment) or "—" }}
+&#10;Macro risk: {{ ", ".join(payload.field_contributors[f.id].macro_risk) or "—" }}
+    {%- endset %}
+    <article class="field card quadrant-{{ f.quadrant|lower|replace('/','-')|replace(' ','-') }}"
+             title="{{ contrib_summary }}">
+      <header>
+        <h3>{{ f.label }}</h3>
+        <span class="quadrant-tag">{{ f.quadrant }}</span>
+      </header>
+      <dl>
+        <dt>Valuation</dt><dd>{{ "—" if f.valuation is none else "%.1f"|format(f.valuation) }}</dd>
+        <dt>Sentiment</dt><dd>{{ "—" if f.sentiment is none else "%.1f"|format(f.sentiment) }}</dd>
+        <dt>Macro risk</dt><dd>{{ "—" if f.macro_risk is none else "%.1f"|format(f.macro_risk) }}</dd>
+      </dl>
+      {% if f.valuation is not none and f.sentiment is not none %}
+      <div class="quadrant-plot" id="quad-{{ f.id }}"
+           data-val="{{ f.valuation }}" data-sent="{{ f.sentiment }}"></div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="metrics">
+  <h2>Metrics <span class="dim">(click any column to sort)</span></h2>
+  <table id="metrics-table" class="sortable">
+    <thead>
+      <tr>
+        <th data-sort="text" data-col="0">ID</th>
+        <th data-sort="text" data-col="1">Category</th>
+        <th data-sort="text" data-col="2">Field</th>
+        <th data-sort="text" data-col="3">As of</th>
+        <th data-sort="num"  data-col="4">Value</th>
+        <th data-sort="num"  data-col="5">Pct</th>
+        <th data-sort="rank" data-col="6">Label</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in payload.metrics %}
+      <tr class="{% if m.flagged_high or m.flagged_low %}row-flag{% endif %}">
+        <td><a href="/metric/{{ m.id }}" title="{{ m.notes or m.id }}">{{ m.id }}</a></td>
+        <td>{{ m.category }}</td>
+        <td>{{ m.field }}</td>
+        <td>{{ m.asof }}</td>
+        <td class="num">{{ "%.2f"|format(m.value) }}</td>
+        <td class="num">{{ "%.1f"|format(m.percentile) }}</td>
+        <td>{{ m.label }}{% if m.flagged_high %} ⚑ high{% elif m.flagged_low %} ⚑ low{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+  // Click-to-sort metrics table. Sorts the 7 columns by:
+  //   text  — alphabetical
+  //   num   — numeric (parses cell text after stripping non-digit chars)
+  //   rank  — semantic regime ordering for the Label column
+  //           (Extreme Low < Low < Normal < High < Extreme High)
+  const LABEL_RANK = {
+    "Extreme Low": 0, "Low": 1, "Normal": 2, "High": 3, "Extreme High": 4, "Unknown": -1,
+  };
+  function rankOfLabelCell(text) {
+    // The cell may include " ⚑ high" / " ⚑ low" suffixes; strip those.
+    const base = text.replace(/⚑.*$/, "").trim();
+    return LABEL_RANK[base] ?? -1;
+  }
+  function cellValue(row, col, kind) {
+    const text = row.children[col].textContent.trim();
+    if (kind === "num") {
+      const n = parseFloat(text.replace(/[^\d.\-eE]/g, ""));
+      return isNaN(n) ? -Infinity : n;
+    }
+    if (kind === "rank") return rankOfLabelCell(text);
+    return text.toLowerCase();
+  }
+  document.querySelectorAll("#metrics-table thead th").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = parseInt(th.dataset.col, 10);
+      const kind = th.dataset.sort;
+      const tbody = document.querySelector("#metrics-table tbody");
+      const rows = Array.from(tbody.children);
+      const dir = th.dataset.dir === "asc" ? "desc" : "asc";
+      // clear prev indicators
+      document.querySelectorAll("#metrics-table thead th").forEach(t => {
+        t.classList.remove("sort-asc", "sort-desc"); delete t.dataset.dir;
+      });
+      th.dataset.dir = dir;
+      th.classList.add(dir === "asc" ? "sort-asc" : "sort-desc");
+      const mul = dir === "asc" ? 1 : -1;
+      rows.sort((a, b) => {
+        const av = cellValue(a, col, kind), bv = cellValue(b, col, kind);
+        if (av < bv) return -1 * mul;
+        if (av > bv) return  1 * mul;
+        return 0;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+
+  // Tiny quadrant scatter for each field card.
+  document.querySelectorAll(".quadrant-plot").forEach((el) => {
+    const v = parseFloat(el.dataset.val);
+    const s = parseFloat(el.dataset.sent);
+    Plotly.newPlot(el, [{
+      x: [v], y: [s], mode: "markers",
+      marker: { size: 14, color: "#222" },
+      hovertemplate: "Valuation: %{x:.1f}<br>Sentiment: %{y:.1f}<extra></extra>"
+    }], {
+      margin: { l: 30, r: 10, t: 10, b: 30 },
+      xaxis: { range: [0,100], title: "Valuation", zeroline: false, fixedrange: true },
+      yaxis: { range: [0,100], title: "Sentiment", zeroline: false, fixedrange: true },
+      shapes: [
+        { type: "line", x0: 50, x1: 50, y0: 0, y1: 100, line: { dash: "dot", color: "#999" } },
+        { type: "line", x0: 0, x1: 100, y0: 50, y1: 50, line: { dash: "dot", color: "#999" } },
+      ],
+      height: 180,
+    }, { displayModeBar: false, responsive: true });
+  });
+</script>
+{% endblock %}

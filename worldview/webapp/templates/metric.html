@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Worldview · {{ metric.id }}{% endblock %}
+
+{% block content %}
+<section class="metric-detail">
+  <h2>{{ metric.id }}</h2>
+
+  {% if metric.notes %}
+  <p class="lede">{{ metric.notes }}</p>
+  {% endif %}
+
+  <dl class="metric-meta">
+    <dt>Category</dt>
+    <dd>{{ metric.category.value }}
+      <span class="dim">— which block this metric feeds into</span>
+    </dd>
+
+    <dt>Field</dt>
+    <dd>{{ metric.field }}
+      <span class="dim">— which business / sector card it rolls up to</span>
+    </dd>
+
+    <dt>Source</dt>
+    <dd><code>{{ metric.source }}</code> · ref <code>{{ metric.source_ref }}</code>
+      <span class="dim">— where the raw values are pulled from</span>
+    </dd>
+
+    <dt>Polarity</dt>
+    <dd>
+      {% set pol = metric.polarity.value %}
+      <code>{{ pol }}</code>
+      <span class="dim">
+        — when this metric prints HIGH, it means
+        {% if pol == "expensive" %}assets are <strong>expensive</strong> (push valuation score up).
+        {% elif pol == "cheap" %}assets are <strong>cheap</strong> (push valuation score down).
+        {% elif pol == "greedy" %}sentiment is <strong>greedy</strong> (push sentiment score up).
+        {% elif pol == "fearful" %}sentiment is <strong>fearful</strong> (push sentiment score down).
+        {% elif pol == "stressed" %}macro is <strong>stressed</strong> (push macro-risk up).
+        {% elif pol == "healthy" %}macro is <strong>healthy</strong> (push macro-risk down).
+        {% elif pol == "weak" %}breadth is <strong>weak</strong> (treated as stress).
+        {% else %}{{ pol }}.{% endif %}
+      </span>
+    </dd>
+
+    <dt>Cadence</dt>
+    <dd>{{ metric.cadence.value }}
+      <span class="dim">— how often the source publishes new data</span>
+    </dd>
+
+    <dt>Weight</dt>
+    <dd>{{ "%.2f"|format(metric.weight) }}
+      <span class="dim">— relative weight inside its block</span>
+    </dd>
+
+    {% if metric.flag_high_pct or metric.flag_low_pct %}
+    <dt>Flag thresholds</dt>
+    <dd>
+      {% if metric.flag_high_pct %}high ≥ {{ metric.flag_high_pct }}th pct{% endif %}
+      {% if metric.flag_high_pct and metric.flag_low_pct %} · {% endif %}
+      {% if metric.flag_low_pct %}low ≤ {{ metric.flag_low_pct }}th pct{% endif %}
+      <span class="dim">— shows up in the dashboard banner once crossed</span>
+    </dd>
+    {% endif %}
+  </dl>
+
+  <h3>History</h3>
+  <div id="metric-chart" style="height: 480px;"></div>
+</section>
+
+<script>
+  fetch("/api/metric/{{ metric.id }}.json")
+    .then(r => r.json())
+    .then(d => {
+      Plotly.newPlot("metric-chart", [{
+        x: d.dates, y: d.values, mode: "lines",
+        line: { width: 1.5, color: "#1a6cb0" },
+        name: d.metric_id,
+      }], {
+        margin: { l: 60, r: 20, t: 10, b: 40 },
+        xaxis: { title: "Date" },
+        yaxis: { title: "Value", fixedrange: false },
+      }, { responsive: true });
+    })
+    .catch(() => {
+      document.getElementById("metric-chart").innerHTML =
+        "<p class='dim' style='padding:24px;'>No history yet — run a snapshot first.</p>";
+    });
+</script>
+{% endblock %}
