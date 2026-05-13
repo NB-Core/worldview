@@ -108,10 +108,18 @@ def test_yfinance_fetcher_drops_nan_close():
     assert list(result.values) == [10.0]
 
 
-def test_yfinance_fetcher_returns_empty_for_empty_frame():
+def test_yfinance_history_raises_on_empty_so_retry_can_fire():
+    """Yahoo's "rate-limited → empty DataFrame" symptom must surface as an
+    exception inside `_history` so tenacity's retry actually fires. We call
+    the underlying function directly via `__wrapped__` to bypass retry timing.
+    """
+    from worldview.fetchers.yfinance_fetcher import _EmptyYahooResponse
+
     fetcher = YFinanceFetcher(ticker_factory=_factory(pd.DataFrame()))
-    result = fetcher.fetch(_metric("yfinance", "X"), date(2024, 1, 1))
-    assert result.empty
+    # `__wrapped__` on a tenacity-decorated function returns the bare function.
+    inner = fetcher._history.__wrapped__
+    with pytest.raises(_EmptyYahooResponse, match="rate-limited"):
+        inner(fetcher, "ANYTHING", date(2024, 1, 1))
 
 
 def test_yfinance_fetcher_translates_exception():
