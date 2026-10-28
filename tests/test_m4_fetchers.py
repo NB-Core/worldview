@@ -16,8 +16,10 @@ from worldview.fetchers.naaim import INDEX_PAGE as NAAIM_INDEX_PAGE, NAAIMFetche
 from worldview.fetchers.ishares import (
     ISHARES_RECIPES,
     IVV_URL,
+    SSGA_SPY_URL,
     ISharesFetcher,
     parse_ishares_holdings,
+    parse_ssga_spy_holdings,
 )
 from worldview.models import Cadence, Category, Metric, Polarity
 
@@ -232,15 +234,22 @@ def test_ishares_unknown_recipe_raises():
 
 @responses.activate
 def test_ishares_translates_http_error():
+    """Both sources down (IVV 403, SSGA HTML) → a single clear FetchError."""
     responses.add(responses.GET, IVV_URL, status=403)
+    responses.add(responses.GET, SSGA_SPY_URL,
+                  body="<!DOCTYPE html><html>blocked</html>", status=200)
     with pytest.raises(FetchError):
         ISharesFetcher().fetch(_metric("ishares", "top_10_share"), date(2008, 1, 1))
 
 
 @responses.activate
 def test_ishares_raises_when_header_missing():
+    """Malformed IVV CSV and an unavailable SSGA fallback → FetchError that
+    still surfaces the original 'no Ticker header' cause."""
     bad_csv = "Fund Holdings as of,2026-04-28\n\nFoo,Bar,Baz\nNVDA,100,7.2\n"
     responses.add(responses.GET, IVV_URL, body=bad_csv, status=200)
+    responses.add(responses.GET, SSGA_SPY_URL,
+                  body="<!DOCTYPE html><html>blocked</html>", status=200)
     with pytest.raises(FetchError, match="no `Ticker,` header"):
         ISharesFetcher().fetch(_metric("ishares", "nvda_share"), date(2008, 1, 1))
 
@@ -253,3 +262,82 @@ def test_ishares_recipes_all_referenced_in_yaml():
         assert m.source_ref in ISHARES_RECIPES, (
             f"{m.id} references unknown recipe {m.source_ref!r}"
         )
+
+
+# ── SSGA SPY fallback ─────────────────────────────────────────────────────────
+
+# iShares now sits behind Akamai bot protection and returns an HTML product
+# page (with a misleading text/csv content-type) instead of the holdings CSV.
+# We fall back to the State Street SPDR SPY .xlsx, which tracks the same index.
+
+_IVV_HTML_BLOCK = (
+    "<!DOCTYPE html><html><head><title>iShares</title></head>"
+    "<body>product page, not a CSV</body></html>"
+)
+
+
+def _make_ssga_spy_xlsx(rows: list[tuple[str, float]]) -> bytes:
+    """Build a small xlsx mimicking State Street's SPY holdings layout.
+
+    A short metadata preamble, then a `Name | Ticker | Identifier | SEDOL |
+    Weight | Sector | Shares Held | Local Currency` header, then rows.
+    Weights are already in percentage points.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "holdings"
+    ws.append(["Fund Name:", "SPDR S&P 500 ETF Trust", "", "", "", "", "", ""])
+    ws.append(["Ticker Symbol:", "SPY", "", "", "", "", "", ""])
+    ws.append(["Holdings:", "As of 21-May-2026", "", "", "", "", "", ""])
+    ws.append(["", "", "", "", "", "", "", ""])
+    ws.append(["Name", "Ticker", "Identifier", "SEDOL", "Weight",
+               "Sector", "Shares Held", "Local Currency"])
+    for ticker, weight in rows:
+        ws.append([f"{ticker} CORP", ticker, "000000000", "0000000",
+                   weight, "-", 1000.0, "USD"])
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def test_parse_ssga_spy_holdings_filters_nonequity():
+    blob = _make_ssga_spy_xlsx([
+        ("NVDA", 8.0), ("AAPL", 7.0), ("MSFT", 5.0),
+        ("2602335D", 0.0001),  # placeholder identifier-as-ticker → filtered
+    ])
+    weights = parse_ssga_spy_holdings(blob)
+    assert weights == pytest.approx({"NVDA": 8.0, "AAPL": 7.0, "MSFT": 5.0})
+    assert "2602335D" not in weights
+
+
+@responses.activate
+def test_ishares_falls_back_to_ssga_when_ivv_blocked():
+    """IVV serves an HTML bot-block page → fetcher transparently uses SSGA SPY."""
+    responses.add(responses.GET, IVV_URL, body=_IVV_HTML_BLOCK, status=200,
+                  content_type="text/csv")  # the misleading content-type Akamai sends
+    blob = _make_ssga_spy_xlsx([("NVDA", 8.0), ("AAPL", 7.0), ("MSFT", 5.0)])
+    responses.add(responses.GET, SSGA_SPY_URL, body=blob, status=200)
+
+    s = ISharesFetcher().fetch(_metric("ishares", "nvda_share"), date(2008, 1, 1))
+    assert s.iloc[0] == pytest.approx(8.0)
+
+
+@responses.activate
+def test_ishares_fallback_computes_top5_from_ssga():
+    responses.add(responses.GET, IVV_URL, body=_IVV_HTML_BLOCK, status=200)
+    blob = _make_ssga_spy_xlsx([("NVDA", 8.0), ("AAPL", 7.0), ("MSFT", 5.0)])
+    responses.add(responses.GET, SSGA_SPY_URL, body=blob, status=200)
+
+    s = ISharesFetcher().fetch(_metric("ishares", "top_5_share"), date(2008, 1, 1))
+    # only three equities present → top-5 sums all of them: 8 + 7 + 5 = 20
+    assert s.iloc[0] == pytest.approx(20.0)
+
+
+@responses.activate
+def test_ishares_prefers_ivv_when_available():
+    """When IVV is healthy, SSGA must not be touched (registered but unused)."""
+    responses.add(responses.GET, IVV_URL, body=_IVV_CSV, status=200)
+    s = ISharesFetcher().fetch(_metric("ishares", "nvda_share"), date(2008, 1, 1))
+    assert s.iloc[0] == pytest.approx(7.2)  # IVV's NVDA weight, not SSGA's
+    # No SSGA request was registered, proving the fallback wasn't reached.
+    assert not any(SSGA_SPY_URL in c.request.url for c in responses.calls)
