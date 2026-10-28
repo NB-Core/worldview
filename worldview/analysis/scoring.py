@@ -51,6 +51,8 @@ def score_metric(
     metric: Metric,
     history: pd.Series,
     asof: date | None = None,
+    *,
+    evaluation_date: date | None = None,
 ) -> MetricScore | None:
     """Score the most recent value of `history` against the rest of it.
 
@@ -62,13 +64,20 @@ def score_metric(
     Returns:
         `MetricScore` or `None` if history is empty.
     """
-    s = history.dropna()
+    s = history.sort_index().dropna()
     if s.empty:
+        return None
+    if evaluation_date is not None:
+        s = s.loc[s.index <= pd.Timestamp(evaluation_date)]
+    s = s[np.isfinite(s)]
+    if len(s) <= metric.min_history:
         return None
 
     last_idx = s.index[-1]
     last_val = float(s.iloc[-1])
-    pct = percentile_rank(s.iloc[:-1], last_val) if len(s) > 1 else 50.0
+    if evaluation_date is not None and (evaluation_date - pd.Timestamp(last_idx).date()).days > max_age_days(metric):
+        return None
+    pct = percentile_rank(s.iloc[:-1], last_val)
 
     flagged_high = (
         metric.flag_high_pct is not None
@@ -90,3 +99,10 @@ def score_metric(
         flagged_high=flagged_high,
         flagged_low=flagged_low,
     )
+
+
+def max_age_days(metric: Metric) -> int:
+    """Operational expiry tolerances in calendar days, not release-date estimates."""
+    return metric.max_age_days if metric.max_age_days is not None else {
+        "daily": 7, "weekly": 21, "monthly": 75, "quarterly": 200,
+    }[metric.cadence.value]

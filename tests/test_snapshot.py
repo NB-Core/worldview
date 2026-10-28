@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -85,7 +85,7 @@ worldview_score_weights:
 
 
 def _ramp(name: str, last_value: float | None = None) -> pd.Series:
-    idx = pd.to_datetime(pd.date_range("2008-01-01", periods=100, freq="D"))
+    idx = pd.to_datetime(pd.date_range(end=date.today(), periods=100, freq="D"))
     values = [float(i) for i in range(100)]
     if last_value is not None:
         values[-1] = last_value

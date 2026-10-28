@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import random
 import time
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
 import pandas as pd
 from tenacity import (
@@ -29,7 +31,7 @@ from ..models import Metric
 from .base import Fetcher, FetchError
 
 
-class _EmptyYahooResponse(ConnectionError):
+class _EmptyYahooResponse(ConnectionError):  # noqa: N818 -- preserve existing exception name
     """Treated as transient — yfinance hands us an empty frame on rate-limit."""
 
 
@@ -44,7 +46,7 @@ class YFinanceFetcher(Fetcher):
     _CALL_JITTER_MIN = 0.10
     _CALL_JITTER_MAX = 0.30
 
-    def __init__(self, ticker_factory: object | None = None) -> None:
+    def __init__(self, ticker_factory: Callable[..., Any] | None = None) -> None:
         """Args:
         ticker_factory: callable returning a yfinance.Ticker-like object.
             Injected for tests; defaults to `yfinance.Ticker`.
@@ -62,7 +64,7 @@ class YFinanceFetcher(Fetcher):
         reraise=True,
     )
     def _history(self, source_ref: str, start: date) -> pd.DataFrame:
-        ticker = self._ticker_factory(source_ref)  # type: ignore[misc]
+        ticker = self._ticker_factory(source_ref)
         df = ticker.history(start=start.isoformat(), auto_adjust=False)
         # yfinance returns an empty DataFrame (with no exception) when Yahoo
         # rate-limits the session. Raise so tenacity actually retries.

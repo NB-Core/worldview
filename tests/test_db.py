@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date
 
 import pandas as pd
 import pytest
 
-from worldview.models import Cadence, Category, Metric, Polarity
+from worldview.models import Metric
 
 
 def test_init_schema_is_idempotent(tmp_db):
@@ -98,7 +99,7 @@ def test_latest_value(tmp_db, sample_metric, sample_series):
 
 def test_observation_requires_existing_metric(tmp_db, sample_series):
     # foreign-key violation if the metric isn't registered first
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.IntegrityError):
         tmp_db.upsert_observations("nonexistent", sample_series)
 
 

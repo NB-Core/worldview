@@ -45,7 +45,7 @@ def read_excel_any(blob: bytes, *, source: str) -> pd.DataFrame:
 
 def _read_xls_via_xlrd(blob: bytes) -> pd.DataFrame:
     """Parse a binary .xls into a DataFrame using xlrd 1.2 directly."""
-    import xlrd  # type: ignore[import-untyped]
+    import xlrd
 
     book = xlrd.open_workbook(file_contents=blob)
     sheet = book.sheet_by_index(0)
