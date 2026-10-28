@@ -125,8 +125,9 @@ def historical_overall_score(
                 fs = FieldScore("overall", "Overall", values.get("valuation"), values.get("sentiment"), values.get("macro_risk"), "N/A", {})
                 records.append({"date": pd.Timestamp(row[0][:10]), "valuation": fs.valuation,
                                 "sentiment": fs.sentiment, "macro_risk": fs.macro_risk,
-                                "worldview_score": worldview_score(fs, weights, sentiment_mode)})
-            return pd.DataFrame(records).set_index("date").groupby(level=0).last()
+                                "worldview_score": json.loads(row[1]).get("_worldview_score", worldview_score(fs, weights, sentiment_mode))})
+            recorded = pd.DataFrame(records).set_index("date")
+            return recorded.loc[~recorded.index.duplicated(keep="last")]
 
     overall = fields.get("overall")
     if overall is None:

@@ -35,7 +35,7 @@ _POLARITY_ORIENTATION: dict[Polarity, tuple[str, int]] = {
 
 
 def _oriented_pct(metric: Metric, pct: float, block: str | None = None) -> float:
-    """Flip percentile if the metric's polarity is the inverse of its block."""
+    """Use an explicit block direction where configured, else legacy polarity."""
     _, sign = _POLARITY_ORIENTATION[metric.polarity]
     if block in {"price_momentum", "concentration"}:
         sign = 1
@@ -169,8 +169,8 @@ def worldview_score(
 ) -> float | None:
     """The single headline number on top of the dashboard.
 
-    Higher = better entry conditions. By default this uses the
-    Buffett-aligned `penalize_greed` sentiment formulation: fear helps,
+    Higher = lower valuation, less greed and lower measured macro stress. By default this uses the
+    `penalize_greed` sentiment formulation: fear raises the score,
     greed hurts, and macro_risk independently flags broken regimes. Pass
     `sentiment_mode="penalize_extremes"` to recover the original
     central-tendency formula.

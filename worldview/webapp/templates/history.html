@@ -8,8 +8,8 @@
   <p class="dim">
     The single composite for the <code>overall</code> field, computed for
     every historical date with an expanding-window percentile against
-    everything that came before. Higher = better entry conditions. Bands
-    shade the regime: red = sell zone, amber = caution, green = buy zone.
+    everything that came before. Higher = lower valuation, less greed and less macro stress. Bands
+    shade the regime: red = lower score, amber = middle score, green = higher score. These are descriptive bands, not trading instructions.
     Toggle stock indexes below to overlay actual market behaviour on a
     secondary axis.
   </p>
@@ -28,7 +28,7 @@
   <h2>Block scores</h2>
   <p class="dim">
     Valuation (expensive → 100), Sentiment (greedy → 100), Macro-risk
-    (stressed → 100). Sentiment crossing 50 is what flips the 2×2 quadrant.
+    (stressed → 100). The legacy quadrant splits at 50; model v2 marks 45–55 on either axis as TRANSITION.
   </p>
   <div id="blocks-chart" style="height: 420px;"></div>
 </section>

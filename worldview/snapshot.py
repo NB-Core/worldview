@@ -148,10 +148,10 @@ def run_snapshot(
     wv = worldview_score(overall, weights, mode) if overall is not None else None
 
     from .analysis.composite import regime
-    db.save_score_snapshot({fid: {
+    db.save_score_snapshot({"_worldview_score": wv, **{fid: {
         "valuation": fs.valuation, "sentiment": fs.sentiment,
         "macro_risk": fs.macro_risk, "regime": regime(fs.valuation, fs.sentiment),
-    } for fid, fs in fscores.items()})
+    } for fid, fs in fscores.items()}})
 
     # `skipped` doesn't count as failure — it's expected during M0/M1.
     status = "ok" if not failed else ("partial" if fetched > 0 else "failed")

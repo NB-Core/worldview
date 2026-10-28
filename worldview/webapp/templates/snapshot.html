@@ -3,7 +3,7 @@
 
 {% block content %}
 <section class="hero">
-  <div class="score-card" title="Formula: 0.4·(100−Valuation) + 0.3·SentTerm + 0.3·(100−MacroRisk).&#10;Default mode rewards fear monotonically (Buffett-style); macro_risk separately captures whether the regime is breaking.">
+  <div class="score-card" title="Formula: 0.4·(100−Valuation) + 0.3·SentTerm + 0.3·(100−MacroRisk).&#10;Default: SentTerm = 100 − Sentiment. Descriptive historical ranks; no trading recommendation.">
     <div class="score-label">Worldview Score</div>
     <div class="score-value">
       {% if payload.worldview_score is not none %}
@@ -13,7 +13,7 @@
       {% endif %}
     </div>
     <div class="score-help">
-      0 = sell-everything · 100 = back-up-the-truck
+      0 = high valuation, greed and stress · 100 = low valuation, fear and low stress
       <br><span class="dim">mode: <code>{{ payload.sentiment_mode }}</code></span>
     </div>
   </div>
@@ -85,7 +85,7 @@
         {% endfor %}
         <p>Legacy v1: {{ payload.legacy_v1.fields[f.id] }}</p>
         {% for days, change in payload.changes.items() %}
-        <p>{{ days }} days: {% if change %}{{ change.fields[f.id] }} ({{ change.as_of }}){% else %}N/A — no verified snapshot{% endif %}</p>
+        <p>{{ days }} days: {% if change %}{{ change.fields[f.id] }} ({{ change.as_of }}) · Worldview Δ {{ change.worldview_delta }}{% else %}N/A — no verified snapshot{% endif %}</p>
         {% endfor %}
       </details>
       {% if f.valuation is not none and f.sentiment is not none %}

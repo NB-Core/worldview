@@ -88,7 +88,7 @@ def _build_payload() -> dict:
         "legacy_v1": legacy_scores(db, metrics_by_id, weights, mode),
         "quality": quality,
         "field_details": details,
-        "changes": db.score_changes(current, date.today()),
+        "changes": db.score_changes(current, date.today(), wv),
         "sentiment_mode": mode,
         "fields": [
             {
@@ -124,7 +124,7 @@ def _build_payload() -> dict:
             }
             for s in sorted(scores.values(), key=lambda x: x.metric_id)
         ],
-        "flags": _flags_with_streak(db),
+        "flags": [f for f in _flags_with_streak(db) if f["metric_id"] in scores],
     }
 
 
@@ -187,7 +187,7 @@ def history_json(legacy: bool = False) -> JSONResponse:
     df = df.dropna(how="all", subset=["valuation", "sentiment", "macro_risk"])
     return JSONResponse(
         {
-            "provenance": "observation_date_unverified" if legacy else "daily_market_observations_only",
+            "provenance": "observation_date_unverified" if legacy else "recorded_snapshots_or_daily_market_observations_only",
             "dates":           [d.date().isoformat() for d in df.index],
             "valuation":       [_safe(v) for v in df["valuation"]],
             "sentiment":       [_safe(v) for v in df["sentiment"]],

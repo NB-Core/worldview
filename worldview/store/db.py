@@ -271,7 +271,7 @@ class Database:
                 (_utcnow_iso(), "v2", json.dumps(payload, allow_nan=False)),
             )
 
-    def score_changes(self, current: dict, today: date) -> dict:
+    def score_changes(self, current: dict, today: date, worldview: float | None = None) -> dict:
         import json
         from datetime import timedelta
         result: dict[str, dict | None] = {}
@@ -287,7 +287,7 @@ class Database:
                     result[str(days)] = None
                     continue
                 old = json.loads(row[1])
-                entry: dict = {'as_of': row[0], 'fields': {}}
+                entry: dict = {'as_of': row[0], 'fields': {}, 'worldview_delta': None if worldview is None or old.get('_worldview_score') is None else worldview - old['_worldview_score']}
                 result[str(days)] = entry
                 for fid, now in current.items():
                     before = old.get(fid, {})

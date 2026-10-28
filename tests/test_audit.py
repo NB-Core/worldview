@@ -133,23 +133,52 @@ def test_contributions_reconcile():
 def test_real_market_cap_gdp_units_and_no_fallback(tmp_path):
     from worldview.fetchers.derived import _us_market_cap_div_gdp
     from worldview.store import Database
-    db = Database(tmp_path / 'cap.db')
+
+    db = Database(tmp_path / "cap.db")
     db.init_schema()
     metrics = {m.id: m for m in load_metrics()}
-    for mid in ('us_equity_market_cap', 'us_gdp'):
+    for mid in ("us_equity_market_cap", "us_gdp"):
         db.upsert_metric(metrics[mid])
     assert _us_market_cap_div_gdp(db, date(2024, 1, 1)).empty
-    idx = pd.to_datetime(['2024-01-01'])
-    db.upsert_observations('us_equity_market_cap', pd.Series([50_000_000.], index=idx))
-    db.upsert_observations('us_gdp', pd.Series([25_000.], index=idx))
+    idx = pd.to_datetime(["2024-01-01"])
+    db.upsert_observations("us_equity_market_cap", pd.Series([50_000_000.0], index=idx))
+    db.upsert_observations("us_gdp", pd.Series([25_000.0], index=idx))
     assert _us_market_cap_div_gdp(db, date(2024, 1, 1)).iloc[0] == 200
 
 
 def test_recorded_history_uses_only_recorded_snapshots(tmp_path):
     from worldview.analysis.history import historical_overall_score
     from worldview.store import Database
-    db = Database(tmp_path / 'recorded.db')
+
+    db = Database(tmp_path / "recorded.db")
     db.init_schema()
-    db.save_score_snapshot({'overall': {'valuation':20, 'sentiment':30, 'macro_risk':40}})
-    result = historical_overall_score(db, {}, {}, {'valuation':.4, 'sentiment':.3, 'macro_risk':.3})
+    db.save_score_snapshot({"overall": {"valuation": 20, "sentiment": 30, "macro_risk": 40}})
+    result = historical_overall_score(
+        db, {}, {}, {"valuation": 0.4, "sentiment": 0.3, "macro_risk": 0.3}
+    )
     assert result.iloc[-1].worldview_score == 71
+
+
+def test_seven_day_worldview_and_regime_change(tmp_path):
+    import json
+    from datetime import timedelta
+
+    from worldview.store import Database
+
+    db = Database(tmp_path / "changes.db")
+    db.init_schema()
+    old = {
+        "_worldview_score": 30,
+        "overall": {"valuation": 80, "sentiment": 56, "macro_risk": 40, "regime": "BUBBLE"},
+    }
+    stamp = (date.today() - timedelta(days=7)).isoformat() + "T12:00:00+00:00"
+    with db.connect() as conn:
+        conn.execute("INSERT INTO score_snapshots VALUES (?, ?, ?)", (stamp, "v2", json.dumps(old)))
+    current = {
+        "overall": {"valuation": 80, "sentiment": 54, "macro_risk": 40, "regime": "TRANSITION"}
+    }
+    changes = db.score_changes(current, date.today(), 31)
+    assert changes["7"]["worldview_delta"] == 1
+    assert changes["7"]["fields"]["overall"]["previous_regime"] == "BUBBLE"
+    assert changes["7"]["fields"]["overall"]["small_move"] is True
+    assert changes["14"] is None
