@@ -18,8 +18,8 @@ then derived fetchers — same code path, no special-casing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 import pandas as pd
 
@@ -100,12 +100,28 @@ def _hy_minus_ig(db: Database, start: date) -> pd.Series:
     return _diff("hy_oas_us", "ig_oas_us")(db, start)
 
 
+def _us_market_cap_div_gdp(db: Database, start: date) -> pd.Series:
+    """Quarterly public-equity cap (millions) / GDP SAAR (billions), percent.
+
+    Join identical reference periods only. No interpolation, no index fallback,
+    no assertion that reference dates are publication dates.
+    """
+    cap = db.get_observations("us_equity_market_cap", since=start)
+    gdp = db.get_observations("us_gdp", since=start)
+    if cap.empty or gdp.empty:
+        return pd.Series(dtype=float)
+    data = pd.concat({"cap": cap, "gdp": gdp}, axis=1).dropna()
+    data = data[(data["gdp"] > 0) & (data["cap"] > 0)]
+    return (data["cap"] / 1000.0 / data["gdp"] * 100.0).rename("us_market_cap_gdp")
+
+
 RECIPES: dict[str, Recipe] = {
     "xlk_div_xlu":              _ratio("xlk", "xlu"),
     "gold_div_copper":          _ratio("gold", "copper"),
     "gold_div_brent":           _ratio("gold", "brent"),
     "italy_minus_bund":         _diff("it_10y", "de_10y"),
     "rsp_div_spy":              _ratio("rsp", "spy"),
+    "us_market_cap_div_gdp": _us_market_cap_div_gdp,
     "sp500_div_gdp":            _sp500_div_gdp,
     "earnings_yield_minus_10y": _earnings_yield_minus_10y,
     "hy_minus_ig":              _hy_minus_ig,

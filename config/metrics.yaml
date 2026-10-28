@@ -22,10 +22,7 @@ metrics:
   # ══════════════════════════════════════════════════════════════════════════
   # OVERALL — Valuation
   # ══════════════════════════════════════════════════════════════════════════
-  # NOTE: FRED retired every public Wilshire 5000 series in 2026
-  # (WILL5000PR/PRFC/IND/INDFC all return 'does not exist' or 500). The
-  # Buffett Indicator now uses S&P 500 / GDP as a >95%-correlated proxy via
-  # the `sp500_div_gdp` derived recipe.
+  # Legacy index-level/GDP proxy is retained for compatibility, excluded in v2.
 
   - id: us_gdp
     category: macro
@@ -47,7 +44,7 @@ metrics:
     flag_high_pct: 90
     flag_low_pct: 10
     weight: 1.5
-    notes: "Buffett Indicator (S&P 500 / US GDP variant). The market-cap-to-economy ratio Buffett called 'probably the best single measure of where valuations stand'. We use S&P 500 as the numerator since FRED has retired every public Wilshire 5000 series — the percentile ranking is unaffected (>95% correlation)."
+    notes: "LEGACY S&P 500 index-level / nominal GDP proxy; NOT market capitalization / GDP. Historical percentile equivalence is not established. Excluded from v2 valuation."
 
   - id: equity_risk_premium
     category: valuation
@@ -876,3 +873,24 @@ metrics:
     cadence: daily
     weight: 0.5
     notes: "EUR/USD spot. Falling = USD strength = global liquidity tightening; rising = the opposite."
+
+  - id: us_equity_market_cap
+    category: valuation
+    field: overall
+    source: fred
+    source_ref: BOGZ1LM883164115Q
+    polarity: expensive
+    cadence: quarterly
+    min_history: 20
+    notes: "Federal Reserve Financial Accounts: all domestic sectors, public corporate equities, liability market value; millions USD, NSA. Excludes private equities; quarterly market cap, not an index."
+
+  - id: us_market_cap_gdp
+    category: valuation
+    field: overall
+    source: derived
+    source_ref: us_market_cap_div_gdp
+    polarity: expensive
+    cadence: quarterly
+    min_history: 20
+    weight: 1.5
+    notes: "Domestic public corporate equity market cap / nominal GDP (SAAR), percent. Quarterly aligned periods; revised data, not a point-in-time backtest. Missing cap/GDP inputs remain N/A."
