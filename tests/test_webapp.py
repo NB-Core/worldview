@@ -87,6 +87,7 @@ def test_prices_json_returns_only_known_metrics(client):
 def test_prices_json_with_seeded_observations(client, tmp_path, monkeypatch):
     """Seed a known metric and confirm /api/prices.json returns its values."""
     import pandas as pd
+
     from worldview.config import load_metrics
     from worldview.store import Database
 

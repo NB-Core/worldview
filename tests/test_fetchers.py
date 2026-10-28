@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from worldview.fetchers import FetchError, FetcherRegistry
+from worldview.fetchers import FetcherRegistry, FetchError
 from worldview.fetchers.fred import FREDFetcher
 from worldview.fetchers.yfinance_fetcher import YFinanceFetcher
 from worldview.models import Cadence, Category, Metric, Polarity

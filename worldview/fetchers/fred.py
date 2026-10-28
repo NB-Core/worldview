@@ -59,7 +59,7 @@ class FREDFetcher(Fetcher):
                     "FRED_API_KEY missing — set it in .env or pass api_key= explicitly."
                 )
             # Imported lazily so tests that inject a fake client don't need fredapi.
-            from fredapi import Fred  # type: ignore[import-untyped]
+            from fredapi import Fred
 
             self._client = Fred(api_key=api_key)
 

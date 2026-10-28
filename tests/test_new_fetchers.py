@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import json
 from datetime import date
 
 import openpyxl
@@ -12,10 +11,12 @@ import pytest
 import responses
 
 from worldview.fetchers import FetchError
-from worldview.fetchers.cnn_fng import ENDPOINT as CNN_ENDPOINT, CNNFearGreedFetcher
-from worldview.fetchers.derived import DerivedFetcher, RECIPES
+from worldview.fetchers.cnn_fng import ENDPOINT as CNN_ENDPOINT
+from worldview.fetchers.cnn_fng import CNNFearGreedFetcher
+from worldview.fetchers.derived import RECIPES, DerivedFetcher
 from worldview.fetchers.gpr_iacoviello import GPR_URL, GPRDailyFetcher
-from worldview.fetchers.multpl import BASE_URL as MULTPL_BASE, MultplFetcher
+from worldview.fetchers.multpl import BASE_URL as MULTPL_BASE
+from worldview.fetchers.multpl import MultplFetcher
 from worldview.models import Cadence, Category, Metric, Polarity
 
 
