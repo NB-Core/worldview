@@ -43,3 +43,11 @@ CREATE TABLE IF NOT EXISTS runs (
     status      TEXT NOT NULL CHECK (status IN ('running', 'ok', 'partial', 'failed')),
     log         TEXT NOT NULL DEFAULT ''
 );
+
+-- Append-only model snapshots. Observation history is untouched.
+CREATE TABLE IF NOT EXISTS score_snapshots (
+    captured_at TEXT NOT NULL,
+    model_version TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    PRIMARY KEY (captured_at, model_version)
+);

@@ -38,31 +38,20 @@
 </section>
 
 <section class="legend">
-  <h2>Quadrant guide</h2>
-  <p class="dim">
-    Every field card sits in one of four boxes — based on its
-    <strong>Valuation Score</strong> (cheap → expensive) and
-    <strong>Sentiment Score</strong> (fearful → greedy).
-    The action label is shorthand for the typical entry posture:
-  </p>
-  <div class="legend-grid">
-    <article class="legend-card buy">
-      <h3>BUY <span class="legend-coords">val ≤ 50 · sent ≤ 50</span></h3>
-      <p>Cheap on fundamentals <em>and</em> fearful on sentiment — Buffett's preferred entry. Mean-reversion has both factors working with you.</p>
-    </article>
-    <article class="legend-card caution">
-      <h3>CAUTION <span class="legend-coords">val ≤ 50 · sent ≥ 50</span></h3>
-      <p>Cheap on paper but the crowd is already running hot. Late-cycle pile-on risk — the trade may still lift off, but sentiment is no tailwind. <em>Wait for a dip.</em></p>
-    </article>
-    <article class="legend-card trap">
-      <h3>TRAP <span class="legend-coords">val ≥ 50 · sent ≤ 50</span></h3>
-      <p>Expensive <em>and</em> nobody likes it. Cheap-looking screens lie — the market's pricing in trouble, and momentum is gone. Often grinds lower for months.</p>
-    </article>
-    <article class="legend-card bubble">
-      <h3>BUBBLE <span class="legend-coords">val ≥ 50 · sent ≥ 50</span></h3>
-      <p>Expensive <em>and</em> euphoric. Classic late-cycle warning. Reduce, hedge, or stay clear; the asymmetry has flipped against new buyers.</p>
-    </article>
-  </div>
+  <h2>Regime guide · model v2</h2>
+  <p>Valuation measures fundamental multiples; Sentiment runs from fear to greed;
+  Macro risk runs from low stress to high stress. Scores describe historical ranks, not forecasts.</p>
+  <p>45–55 on either regime axis is TRANSITION. Outside this band:
+  BUY = low valuation / weak sentiment (legacy name, no buy recommendation);
+  CAUTION = low valuation / strong sentiment; TRAP = high valuation / weak sentiment
+  (no fundamental Value Trap diagnosis); BUBBLE = high valuation / strong sentiment
+  (no proof of a speculative bubble).</p>
+  <p>Price / Momentum is a historical price-level rank, not a return momentum measure.
+  Missing fundamental histories remain N/A. Legacy quadrants retain the 50 threshold.</p>
+  <details><summary>Data quality</summary>
+  {% for id, q in payload.quality.items() %}{% if q.warning %}
+  <p>{{ id }}: {{ q.warning }} · as of {{ q.as_of or 'N/A' }} · n={{ q.observations }}</p>
+  {% endif %}{% endfor %}</details>
 </section>
 
 <section class="fields">
@@ -78,13 +67,27 @@
              title="{{ contrib_summary }}">
       <header>
         <h3>{{ f.label }}</h3>
-        <span class="quadrant-tag">{{ f.quadrant }}</span>
+        <span class="quadrant-tag">{{ payload.field_details[f.id].regime }}</span>
       </header>
       <dl>
         <dt>Valuation</dt><dd>{{ "—" if f.valuation is none else "%.1f"|format(f.valuation) }}</dd>
         <dt>Sentiment</dt><dd>{{ "—" if f.sentiment is none else "%.1f"|format(f.sentiment) }}</dd>
         <dt>Macro risk</dt><dd>{{ "—" if f.macro_risk is none else "%.1f"|format(f.macro_risk) }}</dd>
       </dl>
+      <details><summary>Contributions, coverage &amp; boundaries</summary>
+        <p>Distance to 50 (signed): {{ payload.field_details[f.id].distance_to_50 }}.
+        Distance to transition boundaries: {{ payload.field_details[f.id].distance_to_transition }}.</p>
+        {% for block, info in payload.field_details[f.id].blocks.items() %}
+        <p>{{ block }}: {{ 'N/A' if info.score is none else '%.1f'|format(info.score) }} ·
+          coverage {{ 'N/A' if info.coverage is none else '%.0f%%'|format(info.coverage * 100) }} · {{ info.warning or 'OK' }}</p>
+        {% for c in info.contributors %}<p>{{ c.id }}: rank {{ '%.1f'|format(c.oriented_percentile) }},
+          weight {{ '%.1f%%'|format(c.normalized_weight * 100) }}, contribution {{ '%.1f'|format(c.contribution) }} · {{ c.as_of }}</p>{% endfor %}
+        {% endfor %}
+        <p>Legacy v1: {{ payload.legacy_v1.fields[f.id] }}</p>
+        {% for days, change in payload.changes.items() %}
+        <p>{{ days }} days: {% if change %}{{ change.fields[f.id] }} ({{ change.as_of }}){% else %}N/A — no verified snapshot{% endif %}</p>
+        {% endfor %}
+      </details>
       {% if f.valuation is not none and f.sentiment is not none %}
       <div class="quadrant-plot" id="quad-{{ f.id }}"
            data-val="{{ f.valuation }}" data-sent="{{ f.sentiment }}"></div>

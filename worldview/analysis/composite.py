@@ -17,6 +17,7 @@ The 2×2 quadrant per field falls out of (Valuation, Sentiment).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 
 from ..models import FieldDef, Metric, MetricScore, Polarity
 
@@ -36,7 +37,9 @@ _POLARITY_ORIENTATION: dict[Polarity, tuple[str, int]] = {
 def _oriented_pct(metric: Metric, pct: float, block: str | None = None) -> float:
     """Flip percentile if the metric's polarity is the inverse of its block."""
     _, sign = _POLARITY_ORIENTATION[metric.polarity]
-    sign = metric.score_directions.get(block, sign)
+    if block in {"price_momentum", "concentration"}:
+        sign = 1
+    sign = metric.score_directions.get(block, sign) if block is not None else sign
     return pct if sign == +1 else (100.0 - pct)
 
 
@@ -66,7 +69,7 @@ def _weighted_blend(
         score = scores_by_id.get(mid)
         if metric is None or score is None:
             continue
-        if score.percentile != score.percentile:  # NaN check
+        if not isfinite(score.percentile):
             continue
         pairs.append((_oriented_pct(metric, score.percentile, block), max(metric.weight, 0.0)))
 
@@ -91,6 +94,15 @@ def _quadrant(val: float | None, sent: float | None) -> str:
     if not cheap and fearful:
         return "TRAP"
     return "BUBBLE"
+
+
+def regime(val: float | None, sent: float | None) -> str:
+    """Descriptive regime with an inclusive neutral band; quadrant remains legacy."""
+    if val is None or sent is None:
+        return "N/A"
+    if 45 <= val <= 55 or 45 <= sent <= 55:
+        return "TRANSITION"
+    return _quadrant(val, sent)
 
 
 def field_scores(

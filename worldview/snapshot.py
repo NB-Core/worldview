@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from datetime import date
 
 from .analysis.composite import FieldScore, field_scores, worldview_score
-from .analysis.flags import compute_flags
 from .analysis.history import backfill_flags
 from .analysis.scoring import score_metric
 from .config import (
@@ -21,7 +20,7 @@ from .config import (
     load_sentiment_mode,
     load_settings,
 )
-from .fetchers import FetchError, FetcherRegistry, default_registry
+from .fetchers import FetcherRegistry, FetchError, default_registry
 from .fetchers.registry import UnsupportedSource
 from .models import Cadence, Metric, MetricScore
 from .store import Database
@@ -125,7 +124,7 @@ def run_snapshot(
         history = db.get_observations(m.id)
         if history.empty:
             continue
-        s = score_metric(m, history)
+        s = score_metric(m, history, evaluation_date=date.today())
         if s is not None:
             scores[m.id] = s
 
@@ -147,6 +146,12 @@ def run_snapshot(
     mode = load_sentiment_mode()
     overall = fscores.get("overall")
     wv = worldview_score(overall, weights, mode) if overall is not None else None
+
+    from .analysis.composite import regime
+    db.save_score_snapshot({fid: {
+        "valuation": fs.valuation, "sentiment": fs.sentiment,
+        "macro_risk": fs.macro_risk, "regime": regime(fs.valuation, fs.sentiment),
+    } for fid, fs in fscores.items()})
 
     # `skipped` doesn't count as failure — it's expected during M0/M1.
     status = "ok" if not failed else ("partial" if fetched > 0 else "failed")

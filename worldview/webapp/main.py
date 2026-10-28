@@ -23,7 +23,9 @@ from fastapi.templating import Jinja2Templates
 
 from ..analysis.composite import field_scores, worldview_score
 from ..analysis.history import current_streak, historical_overall_score
+from ..analysis.legacy import legacy_scores
 from ..analysis.scoring import score_metric
+from ..analysis.transparency import field_details
 from ..config import (
     load_fields,
     load_metrics,
@@ -54,11 +56,17 @@ def _build_payload() -> dict:
     metrics_by_id = {m.id: m for m in metrics}
 
     scores = {}
+    quality = {}
     for m in metrics:
         history = db.get_observations(m.id)
-        if history.empty:
-            continue
-        s = score_metric(m, history)
+        from ..analysis.scoring import max_age_days
+        age = (date.today() - history.index[-1].date()).days if not history.empty else None
+        quality[m.id] = {"as_of": history.index[-1].date().isoformat() if not history.empty else None,
+                         "observations": len(history), "age_days": age,
+                         "warning": "missing" if history.empty else (
+                             "insufficient_history" if len(history) <= m.min_history else (
+                                 "stale" if age is not None and age > max_age_days(m) else None))}
+        s = score_metric(m, history, evaluation_date=date.today())
         if s is not None:
             scores[m.id] = s
 
@@ -69,9 +77,18 @@ def _build_payload() -> dict:
     overall = fscores.get("overall")
     wv = worldview_score(overall, weights, mode) if overall else None
 
+    details = {fid: field_details(fdef[fid], fs, metrics_by_id, scores) for fid, fs in fscores.items()}
+    current = {fid: {"valuation": fs.valuation, "sentiment": fs.sentiment,
+                     "macro_risk": fs.macro_risk, "regime": details[fid]["regime"]}
+               for fid, fs in fscores.items()}
     return {
         "asof": max((s.asof for s in scores.values()), default=None),
         "worldview_score": wv,
+        "model_version": "v2",
+        "legacy_v1": legacy_scores(db, metrics_by_id, weights, mode),
+        "quality": quality,
+        "field_details": details,
+        "changes": db.score_changes(current, date.today()),
         "sentiment_mode": mode,
         "fields": [
             {
@@ -152,7 +169,7 @@ def history_page(request: Request) -> HTMLResponse:
 
 
 @app.get("/api/history.json")
-def history_json() -> JSONResponse:
+def history_json(legacy: bool = False) -> JSONResponse:
     settings = load_settings()
     db = Database(settings.db_path)
     db.init_schema()
@@ -160,7 +177,7 @@ def history_json() -> JSONResponse:
     fields = load_fields()
     weights = load_score_weights()
 
-    df = historical_overall_score(db, metrics_by_id, fields, weights, load_sentiment_mode())
+    df = historical_overall_score(db, metrics_by_id, fields, weights, load_sentiment_mode(), verified_only=not legacy)
     if df.empty:
         return JSONResponse({"dates": [], "valuation": [], "sentiment": [],
                              "macro_risk": [], "worldview_score": []})
@@ -170,6 +187,7 @@ def history_json() -> JSONResponse:
     df = df.dropna(how="all", subset=["valuation", "sentiment", "macro_risk"])
     return JSONResponse(
         {
+            "provenance": "observation_date_unverified" if legacy else "daily_market_observations_only",
             "dates":           [d.date().isoformat() for d in df.index],
             "valuation":       [_safe(v) for v in df["valuation"]],
             "sentiment":       [_safe(v) for v in df["sentiment"]],
