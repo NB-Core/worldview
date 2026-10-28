@@ -92,12 +92,19 @@ def _build_payload() -> dict:
         "sentiment_mode": mode,
         "fields": [
             {
-                "id":         fs.field_id,
-                "label":      fs.label,
-                "valuation":  fs.valuation,
-                "sentiment":  fs.sentiment,
-                "macro_risk": fs.macro_risk,
-                "quadrant":   fs.quadrant,
+                "id":                 fs.field_id,
+                "label":              fs.label,
+                "valuation":          fs.valuation,
+                "valuation_is_proxy": details[fs.field_id]["valuation_is_proxy"],
+                "valuation_display":  details[fs.field_id]["valuation_display"],
+                "sentiment":          fs.sentiment,
+                "macro_risk":         fs.macro_risk,
+                # Legacy strict quadrant (requires real fundamental valuation,
+                # N/A for 6 of 7 fields). `details[...]['regime']` is the one
+                # the dashboard renders — it falls back to the price-level
+                # proxy so the card isn't just a dead N/A tile.
+                "quadrant":           fs.quadrant,
+                "regime":             details[fs.field_id]["regime"],
             }
             for fs in fscores.values()
         ],

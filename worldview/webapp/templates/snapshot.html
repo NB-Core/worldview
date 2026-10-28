@@ -47,7 +47,15 @@
   (no fundamental Value Trap diagnosis); BUBBLE = high valuation / strong sentiment
   (no proof of a speculative bubble).</p>
   <p>Price / Momentum is a historical price-level rank, not a return momentum measure.
-  Missing fundamental histories remain N/A. Legacy quadrants retain the 50 threshold.</p>
+  AI, Construction, Finance, Energy, Defense and Defensive have no historical
+  fundamental-multiple series yet, so their true Valuation score is N/A — see
+  <a href="https://github.com/NB-Core/worldview/blob/main/docs/scoring-audit.md">scoring-audit.md</a>.
+  For those fields only, the card's regime tag and quadrant color fall back to
+  the field's Price/Momentum percentile so the tile isn't blank; such tags are
+  marked <strong>(price proxy)</strong> and are a price-level rank, not a
+  valuation. The "Valuation" row below always shows the real score (— if N/A).
+  Legacy quadrants (bottom of each card's details) retain the original 50
+  threshold and un-patched polarity for comparison only.</p>
   <details><summary>Data quality</summary>
   {% for id, q in payload.quality.items() %}{% if q.warning %}
   <p>{{ id }}: {{ q.warning }} · as of {{ q.as_of or 'N/A' }} · n={{ q.observations }}</p>
@@ -63,14 +71,24 @@
 &#10;Sentiment: {{ ", ".join(payload.field_contributors[f.id].sentiment) or "—" }}
 &#10;Macro risk: {{ ", ".join(payload.field_contributors[f.id].macro_risk) or "—" }}
     {%- endset %}
-    <article class="field card quadrant-{{ f.quadrant|lower|replace('/','-')|replace(' ','-') }}"
+    {% set display_regime = payload.field_details[f.id].regime %}
+    <article class="field card quadrant-{{ display_regime|lower|replace('/','-')|replace(' ','-') }}"
              title="{{ contrib_summary }}">
       <header>
         <h3>{{ f.label }}</h3>
-        <span class="quadrant-tag">{{ payload.field_details[f.id].regime }}</span>
+        <span class="quadrant-tag">{{ display_regime }}{% if f.valuation_is_proxy %} <span class="proxy-flag" title="No fundamental valuation data for this field. Falls back to the Price/Momentum percentile — a price-level rank, not a valuation.">(price proxy)</span>{% endif %}</span>
       </header>
       <dl>
-        <dt>Valuation</dt><dd>{{ "—" if f.valuation is none else "%.1f"|format(f.valuation) }}</dd>
+        <dt>Valuation{% if f.valuation_is_proxy %} <span class="dim">(real: N/A)</span>{% endif %}</dt>
+        <dd>
+          {%- if f.valuation is not none -%}
+            {{ "%.1f"|format(f.valuation) }}
+          {%- elif f.valuation_is_proxy -%}
+            {{ "%.1f"|format(f.valuation_display) }} <span class="proxy-flag" title="Price/Momentum percentile used as a proxy because no fundamental valuation metrics are configured for this field.">(proxy)</span>
+          {%- else -%}
+            —
+          {%- endif -%}
+        </dd>
         <dt>Sentiment</dt><dd>{{ "—" if f.sentiment is none else "%.1f"|format(f.sentiment) }}</dd>
         <dt>Macro risk</dt><dd>{{ "—" if f.macro_risk is none else "%.1f"|format(f.macro_risk) }}</dd>
       </dl>
@@ -88,9 +106,11 @@
         <p>{{ days }} days: {% if change %}{{ change.fields[f.id] }} ({{ change.as_of }}) · Worldview Δ {{ change.worldview_delta }}{% else %}N/A — no verified snapshot{% endif %}</p>
         {% endfor %}
       </details>
-      {% if f.valuation is not none and f.sentiment is not none %}
+      {% if f.valuation_display is not none and f.sentiment is not none %}
       <div class="quadrant-plot" id="quad-{{ f.id }}"
-           data-val="{{ f.valuation }}" data-sent="{{ f.sentiment }}"></div>
+           data-val="{{ f.valuation_display }}" data-sent="{{ f.sentiment }}"
+           data-proxy="{{ 'true' if f.valuation_is_proxy else 'false' }}"
+           data-xlabel="{{ 'Valuation (price proxy)' if f.valuation_is_proxy else 'Valuation' }}"></div>
       {% endif %}
     </article>
     {% endfor %}
@@ -174,17 +194,24 @@
     });
   });
 
-  // Tiny quadrant scatter for each field card.
+  // Tiny quadrant scatter for each field card. When the field has no real
+  // fundamental valuation, the x-axis is the Price/Momentum proxy instead —
+  // marker is hollow/dashed and the axis title says so, so it's never
+  // mistaken for a true valuation reading.
   document.querySelectorAll(".quadrant-plot").forEach((el) => {
     const v = parseFloat(el.dataset.val);
     const s = parseFloat(el.dataset.sent);
+    const isProxy = el.dataset.proxy === "true";
+    const xlabel = el.dataset.xlabel || "Valuation";
     Plotly.newPlot(el, [{
       x: [v], y: [s], mode: "markers",
-      marker: { size: 14, color: "#222" },
-      hovertemplate: "Valuation: %{x:.1f}<br>Sentiment: %{y:.1f}<extra></extra>"
+      marker: isProxy
+        ? { size: 14, color: "#fff", line: { color: "#222", width: 2, dash: "dot" } }
+        : { size: 14, color: "#222" },
+      hovertemplate: xlabel + ": %{x:.1f}<br>Sentiment: %{y:.1f}<extra></extra>"
     }], {
       margin: { l: 30, r: 10, t: 10, b: 30 },
-      xaxis: { range: [0,100], title: "Valuation", zeroline: false, fixedrange: true },
+      xaxis: { range: [0,100], title: xlabel, zeroline: false, fixedrange: true },
       yaxis: { range: [0,100], title: "Sentiment", zeroline: false, fixedrange: true },
       shapes: [
         { type: "line", x0: 50, x1: 50, y0: 0, y1: 100, line: { dash: "dot", color: "#999" } },

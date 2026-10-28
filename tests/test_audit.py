@@ -65,6 +65,75 @@ def test_regime_neutral_band(val, sent, label):
     assert regime(val, sent) == label
 
 
+@pytest.mark.parametrize(
+    "val,price_momentum,expected_value,expected_proxy",
+    [
+        (80, 30, 80, False),   # real valuation present -> never touch the proxy
+        (None, 30, 30, True),  # no real valuation -> fall back to price_momentum
+        (None, None, None, False),  # neither available -> stays N/A, not a false proxy
+        (0, 99, 0, False),     # 0 is a legit valuation value, not falsy-None
+    ],
+)
+def test_effective_valuation_fallback(val, price_momentum, expected_value, expected_proxy):
+    from worldview.analysis.composite import effective_valuation
+
+    value, is_proxy = effective_valuation(val, price_momentum)
+    assert value == expected_value
+    assert is_proxy is expected_proxy
+
+
+def test_field_details_regime_uses_price_momentum_proxy_when_valuation_missing():
+    """AI/Construction/Finance/Energy/Defense/Defensive have no fundamental
+    valuation metrics (config/fields.yaml) post-audit, so field_scores(...)
+    valuation stays None. field_details() must not leave the dashboard's
+    regime tag permanently N/A for those fields -- it should fall back to the
+    field's price_momentum percentile, and must say so via valuation_is_proxy.
+    """
+    from worldview.analysis.transparency import field_details
+    from worldview.models import FieldDef
+
+    metrics = {m.id: m for m in load_metrics()}
+    # No valuation metrics configured (mirrors the real ai/finance/... fields),
+    # but sentiment and price_momentum both have data.
+    definition = FieldDef(
+        "test", "Test", valuation=[], sentiment=["vix"], macro_risk=[], price_momentum=["smh"]
+    )
+    scores = {
+        "vix": MetricScore("vix", date.today(), 10, 20, "Low"),
+        "smh": MetricScore("smh", date.today(), 200, 90, "High"),
+    }
+    score = field_scores({"test": definition}, metrics, scores)["test"]
+    assert score.valuation is None  # the honest, unchanged value
+
+    details = field_details(definition, score, metrics, scores)
+    assert details["valuation_is_proxy"] is True
+    assert details["valuation_display"] == pytest.approx(90)
+    # vix is "fearful" polarity: raw pct 20 flips to oriented sentiment 80 (greedy).
+    # proxy valuation=90 (expensive) + sentiment=80 (greedy) -> BUBBLE, not N/A.
+    assert score.sentiment == pytest.approx(80)
+    assert details["regime"] == "BUBBLE"
+
+
+def test_field_details_no_proxy_when_real_valuation_present():
+    from worldview.analysis.transparency import field_details
+    from worldview.models import FieldDef
+
+    metrics = {m.id: m for m in load_metrics()}
+    definition = FieldDef(
+        "test", "Test", valuation=["shiller_cape_us"], sentiment=["vix"], macro_risk=[],
+        price_momentum=["smh"],
+    )
+    scores = {
+        "shiller_cape_us": MetricScore("shiller_cape_us", date.today(), 30, 70, "High"),
+        "vix": MetricScore("vix", date.today(), 10, 20, "Low"),
+        "smh": MetricScore("smh", date.today(), 200, 10, "Low"),
+    }
+    score = field_scores({"test": definition}, metrics, scores)["test"]
+    details = field_details(definition, score, metrics, scores)
+    assert details["valuation_is_proxy"] is False
+    assert details["valuation_display"] == pytest.approx(score.valuation)
+
+
 def test_quality_insufficient_stale_and_future():
     from worldview.analysis.scoring import score_metric
 

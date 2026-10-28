@@ -86,14 +86,16 @@ h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: v
   background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px;
   border-left: 4px solid var(--na);
 }
-.card.quadrant-buy     { border-left-color: var(--buy); }
-.card.quadrant-caution { border-left-color: var(--caution); }
-.card.quadrant-trap    { border-left-color: var(--trap); }
-.card.quadrant-bubble  { border-left-color: var(--bubble); }
+.card.quadrant-buy        { border-left-color: var(--buy); }
+.card.quadrant-caution    { border-left-color: var(--caution); }
+.card.quadrant-trap       { border-left-color: var(--trap); }
+.card.quadrant-bubble     { border-left-color: var(--bubble); }
+.card.quadrant-transition { border-left-color: var(--muted); }
 
 .card header { display: flex; justify-content: space-between; align-items: baseline; padding: 0; border: none; background: none; }
 .card h3 { margin: 0; font-size: 15px; font-weight: 600; }
 .quadrant-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f0f0e8; color: var(--fg); }
+.proxy-flag { font-style: italic; color: var(--muted); cursor: help; }
 .card dl { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; row-gap: 2px; margin: 8px 0; font-size: 13px; }
 .card dt { color: var(--muted); }
 .card dd { margin: 0; font-variant-numeric: tabular-nums; }

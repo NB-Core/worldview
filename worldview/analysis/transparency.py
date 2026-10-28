@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .composite import _oriented_pct, _weighted_blend, regime
+from .composite import _oriented_pct, _weighted_blend, effective_valuation, regime
 
 BLOCKS = ("valuation", "sentiment", "macro_risk", "price_momentum", "concentration")
 
@@ -36,16 +36,20 @@ def field_details(definition, score, metrics, scores):
                 for mid in used
             ],
         }
+    proxy_val, is_proxy = effective_valuation(score.valuation, blocks["price_momentum"]["score"])
+    axis_scores = {"valuation": proxy_val, "sentiment": blocks["sentiment"]["score"]}
     return {
-        "regime": regime(score.valuation, score.sentiment),
+        "regime": regime(proxy_val, score.sentiment),
+        "valuation_is_proxy": is_proxy,
+        "valuation_display": proxy_val,
         "distance_to_50": {
-            b: None if blocks[b]["score"] is None else blocks[b]["score"] - 50
+            b: None if axis_scores[b] is None else axis_scores[b] - 50
             for b in ("valuation", "sentiment")
         },
         "distance_to_transition": {
             b: None
-            if blocks[b]["score"] is None
-            else min(abs(blocks[b]["score"] - 45), abs(blocks[b]["score"] - 55))
+            if axis_scores[b] is None
+            else min(abs(axis_scores[b] - 45), abs(axis_scores[b] - 55))
             for b in ("valuation", "sentiment")
         },
         "blocks": blocks,

@@ -105,6 +105,31 @@ def regime(val: float | None, sent: float | None) -> str:
     return _quadrant(val, sent)
 
 
+def effective_valuation(
+    val: float | None, price_momentum: float | None
+) -> tuple[float | None, bool]:
+    """Fall back to the field's price_momentum block when it has no real
+    fundamental-valuation metrics configured.
+
+    Six fields (AI, Construction, Finance, Energy, Defense, Defensive) have an
+    empty `valuation` list in config/fields.yaml as of the scoring audit
+    (docs/scoring-audit.md): their old "valuation" metrics were ETF/stock
+    *price levels*, not fundamental multiples (P/E, P/B, EV/EBITDA), and no
+    historical fundamental-multiple series is available for them yet. Leaving
+    `valuation` as None there is the honest answer and must not change.
+
+    But a blank quadrant for 6 of 7 fields defeats the dashboard's whole
+    point. This returns a second-best, clearly-flagged axis — the field's
+    historical price-level percentile — purely so the UI can render an
+    actionable (if caveated) regime instead of a dead "N/A" tile. Callers
+    MUST surface the `is_proxy` flag; a price-level percentile is not a
+    valuation and must never be relabeled as one.
+    """
+    if val is not None:
+        return val, False
+    return price_momentum, price_momentum is not None
+
+
 def field_scores(
     fields: dict[str, FieldDef],
     metrics_by_id: dict[str, Metric],

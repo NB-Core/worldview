@@ -187,3 +187,35 @@ nicht beweisen. Der Nutzer trifft die Investmententscheidung.
 | `worldview/webapp/main.py` | Additive API-Metadaten, Qualitätsfilter, Legacy-Werte, historische Provenienz. |
 | `worldview/webapp/templates/history.html` | Deskriptive Historiensemantik und deutliche Grenze unverifizierter Rekonstruktionen. |
 | `worldview/webapp/templates/snapshot.html` | Deskriptive Texte, TRANSITION, Details für Beiträge, Coverage und Änderungen. |
+
+## Nachtrag (28.10.2026): Darstellungs-Fallback für fehlende Feld-Valuation
+
+Die obige Entscheidung bleibt unverändert: Finance, AI, Energy, Defense,
+Construction und Defensive haben weiterhin **keine** echte fundamentale
+Valuation-Kennzahl, und `field_scores(...).valuation` bleibt für sie `None`.
+Es wurden keine Fundamentaldaten hinzugefügt oder simuliert.
+
+Folge dieser Entscheidung war, dass das Dashboard für sechs von sieben
+Feldern dauerhaft nur "N/A" zeigte — das Kernprodukt (2×2-Quadrant pro Feld)
+war damit für fast alle Felder unbenutzbar. Als rein darstellungsseitiger
+Fallback nutzt der Snapshot jetzt `analysis.composite.effective_valuation()`:
+fehlt die echte Valuation, wird stattdessen der ohnehin schon berechnete
+`price_momentum`-Perzentilwert des Feldes für Regime-Tag, Kartenfarbe und
+Quadrant-Scatter verwendet — ausdrücklich als **„(price proxy)"/„(proxy)"**
+gekennzeichnet, mit Tooltip, dass es sich um einen Preis-Rang und keine
+Bewertung handelt. Das reale `valuation`-Feld, `field_scores(...).quadrant`
+(strikte Legacy-Definition) und `/api/snapshot.json`-Werte bleiben `None`/`N/A`
+und unverändert; nur `field_details[...]['regime']` und das zusätzliche
+`valuation_is_proxy`/`valuation_display` greifen auf den Proxy zurück.
+
+Betroffene Dateien: `worldview/analysis/composite.py` (neue Funktion
+`effective_valuation`), `worldview/analysis/transparency.py` (`field_details`
+berechnet Regime jetzt mit Fallback), `worldview/snapshot.py` (persistiertes
+Snapshot-Regime nutzt denselben Fallback), `worldview/webapp/main.py`
+(zusätzliche Payload-Felder), `worldview/webapp/templates/snapshot.html` +
+`static/styles.css` (Kennzeichnung im UI).
+
+Langfristig richtige Lösung bleibt unverändert Abschnitt "Echte
+Market-Cap/GDP-Reihe und weitere Fundamentaldaten": belastbare historische
+Forward-KGV/KBV/EV-EBITDA-Reihen je Sektor beschaffen und den Proxy dann
+ersetzen statt ergänzen.

@@ -147,10 +147,18 @@ def run_snapshot(
     overall = fscores.get("overall")
     wv = worldview_score(overall, weights, mode) if overall is not None else None
 
-    from .analysis.composite import regime
+    from .analysis.composite import _weighted_blend, effective_valuation, regime
+
+    def _field_regime(fid: str, fs: FieldScore) -> str:
+        price_momentum = _weighted_blend(
+            fields_def[fid].price_momentum, metrics_by_id, scores, "price_momentum"
+        )
+        proxy_val, _is_proxy = effective_valuation(fs.valuation, price_momentum)
+        return regime(proxy_val, fs.sentiment)
+
     db.save_score_snapshot({"_worldview_score": wv, **{fid: {
         "valuation": fs.valuation, "sentiment": fs.sentiment,
-        "macro_risk": fs.macro_risk, "regime": regime(fs.valuation, fs.sentiment),
+        "macro_risk": fs.macro_risk, "regime": _field_regime(fid, fs),
     } for fid, fs in fscores.items()}})
 
     # `skipped` doesn't count as failure — it's expected during M0/M1.
