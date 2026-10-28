@@ -74,6 +74,13 @@ def load_settings(env_file: Path | None = None) -> Settings:
 # ── Metric registry ───────────────────────────────────────────────────────────
 
 
+def _parse_directions(raw: dict) -> dict[str, int]:
+    if any(k not in {"valuation", "sentiment", "macro_risk", "price_momentum"}
+           or type(v) is not int or v not in {-1, 1} for k, v in raw.items()):
+        raise ValueError("score_directions requires block: +1 or -1")
+    return dict(raw)
+
+
 def _parse_metric(row: dict) -> Metric:
     """Parse one YAML row into a `Metric`. Raises `ValueError` on bad input."""
     try:
@@ -88,6 +95,7 @@ def _parse_metric(row: dict) -> Metric:
             weight=float(row.get("weight", 1.0)),
             flag_high_pct=row.get("flag_high_pct"),
             flag_low_pct=row.get("flag_low_pct"),
+            score_directions=_parse_directions(row.get("score_directions", {})),
             notes=row.get("notes", "") or "",
         )
     except KeyError as e:

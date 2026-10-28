@@ -66,6 +66,7 @@ metrics:
     source: derived
     source_ref: hy_minus_ig
     polarity: fearful
+    score_directions: {sentiment: -1, macro_risk: 1}
     cadence: daily
     flag_high_pct: 90
     weight: 1.0
@@ -307,6 +308,7 @@ metrics:
     source: fred
     source_ref: "BAMLH0A0HYM2"
     polarity: fearful
+    score_directions: {sentiment: -1, macro_risk: 1}
     cadence: daily
     flag_high_pct: 90
     weight: 1.5
@@ -318,6 +320,7 @@ metrics:
     source: fred
     source_ref: "BAMLC0A0CM"
     polarity: fearful
+    score_directions: {sentiment: -1, macro_risk: 1}
     cadence: daily
     weight: 0.8
     notes: "ICE BofA US Investment Grade OAS."
@@ -782,6 +785,7 @@ metrics:
     source: yfinance
     source_ref: "CHF=X"
     polarity: fearful        # rising CHF = safe-haven bid = risk-off
+    score_directions: {sentiment: 1}  # CHF=X is USD/CHF; falling = stronger CHF / fear
     cadence: daily
     weight: 0.5
     notes: "USD/CHF. Lower = stronger Swiss franc = safe-haven flow."
@@ -847,6 +851,7 @@ metrics:
     source: fred
     source_ref: "BAMLHE00EHYIOAS"
     polarity: fearful
+    score_directions: {sentiment: -1, macro_risk: 1}
     cadence: daily
     flag_high_pct: 90
     weight: 1.0

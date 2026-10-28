@@ -33,9 +33,10 @@ _POLARITY_ORIENTATION: dict[Polarity, tuple[str, int]] = {
 }
 
 
-def _oriented_pct(metric: Metric, pct: float) -> float:
+def _oriented_pct(metric: Metric, pct: float, block: str | None = None) -> float:
     """Flip percentile if the metric's polarity is the inverse of its block."""
     _, sign = _POLARITY_ORIENTATION[metric.polarity]
+    sign = metric.score_directions.get(block, sign)
     return pct if sign == +1 else (100.0 - pct)
 
 
@@ -56,6 +57,7 @@ def _weighted_blend(
     metric_ids: list[str],
     metrics_by_id: dict[str, Metric],
     scores_by_id: dict[str, MetricScore],
+    block: str | None = None,
 ) -> float | None:
     """Weighted average of *oriented* percentiles. None if nothing contributes."""
     pairs: list[tuple[float, float]] = []
@@ -66,7 +68,7 @@ def _weighted_blend(
             continue
         if score.percentile != score.percentile:  # NaN check
             continue
-        pairs.append((_oriented_pct(metric, score.percentile), max(metric.weight, 0.0)))
+        pairs.append((_oriented_pct(metric, score.percentile, block), max(metric.weight, 0.0)))
 
     if not pairs:
         return None
@@ -105,9 +107,9 @@ def field_scores(
     """
     out: dict[str, FieldScore] = {}
     for fid, fdef in fields.items():
-        val  = _weighted_blend(fdef.valuation,  metrics_by_id, scores_by_id)
-        sent = _weighted_blend(fdef.sentiment,  metrics_by_id, scores_by_id)
-        risk = _weighted_blend(fdef.macro_risk, metrics_by_id, scores_by_id)
+        val  = _weighted_blend(fdef.valuation,  metrics_by_id, scores_by_id, "valuation")
+        sent = _weighted_blend(fdef.sentiment,  metrics_by_id, scores_by_id, "sentiment")
+        risk = _weighted_blend(fdef.macro_risk, metrics_by_id, scores_by_id, "macro_risk")
         out[fid] = FieldScore(
             field_id=fid,
             label=fdef.label,
@@ -116,9 +118,9 @@ def field_scores(
             macro_risk=risk,
             quadrant=_quadrant(val, sent),
             contributing={
-                "valuation":  list(fdef.valuation),
-                "sentiment":  list(fdef.sentiment),
-                "macro_risk": list(fdef.macro_risk),
+                "valuation":  [mid for mid in fdef.valuation if mid in scores_by_id],
+                "sentiment":  [mid for mid in fdef.sentiment if mid in scores_by_id],
+                "macro_risk": [mid for mid in fdef.macro_risk if mid in scores_by_id],
             },
         )
     return out

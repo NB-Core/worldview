@@ -110,7 +110,7 @@ def historical_overall_score(
     Joined on date intersection of inputs (dates where all relevant metrics
     have an observation; missing days drop out cleanly).
     """
-    from ..analysis.composite import _POLARITY_ORIENTATION
+    from ..analysis.composite import _oriented_pct
 
     overall = fields.get("overall")
     if overall is None:
@@ -118,7 +118,7 @@ def historical_overall_score(
             columns=["valuation", "sentiment", "macro_risk", "worldview_score"]
         )
 
-    def _block_series(metric_ids: list[str]) -> pd.Series:
+    def _block_series(metric_ids: list[str], block: str) -> pd.Series:
         """Weighted-average expanding percentile (polarity-oriented) for a block."""
         ids = [mid for mid in metric_ids if mid in metrics_by_id]
         if not ids:
@@ -132,9 +132,7 @@ def historical_overall_score(
                 continue
             pct = expanding_percentiles(obs)
             metric = metrics_by_id[mid]
-            _, sign = _POLARITY_ORIENTATION.get(metric.polarity, ("", +1))
-            if sign == -1:
-                pct = 100.0 - pct
+            pct = _oriented_pct(metric, pct, block)
             pct.name = mid
             oriented.append(pct)
             weights_seq.append(max(metric.weight, 0.0))
@@ -152,9 +150,9 @@ def historical_overall_score(
         denominator = wide.notna().mul(w, axis=1).sum(axis=1)
         return (numerator / denominator).dropna()
 
-    val = _block_series(overall.valuation)
-    sent = _block_series(overall.sentiment)
-    risk = _block_series(overall.macro_risk)
+    val = _block_series(overall.valuation, "valuation")
+    sent = _block_series(overall.sentiment, "sentiment")
+    risk = _block_series(overall.macro_risk, "macro_risk")
 
     out = pd.concat(
         {"valuation": val, "sentiment": sent, "macro_risk": risk}, axis=1

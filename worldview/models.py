@@ -64,6 +64,7 @@ class Metric:
     flag_high_pct: float | None = None
     flag_low_pct: float | None = None
     notes: str = ""
+    score_directions: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

@@ -58,17 +58,11 @@ def _diff(left_id: str, right_id: str) -> Recipe:
 
 # Public registry. Keys are what shows up in `metric.source_ref`.
 def _sp500_div_gdp(db: Database, start: date) -> pd.Series:
-    """Buffett Indicator proxy: S&P 500 / nominal US GDP.
+    """Legacy S&P index-level / nominal GDP proxy, NOT market-cap / GDP.
 
-    Originally Buffett used the Wilshire 5000 / GDP, but FRED has retired
-    every public Wilshire series in 2026 ("the series does not exist"), so
-    we use the S&P 500 as the numerator instead. The S&P 500 is ~85-90% of
-    US total equity market cap; the difference is a near-constant scaling
-    factor that drops out of percentile rankings, which is the only way we
-    use this ratio anyway.
-
-    GDP is quarterly; we forward-fill onto the daily S&P grid so the ratio
-    updates intra-quarter as the market moves.
+    The index divisor changes; historical ranks are not equivalent to a Buffett
+    indicator. Retained solely for legacy comparisons; excluded from valuation.
+    GDP observation dates are period dates, not verified release dates.
     """
     p = db.get_observations("sp500_close", since=start)
     g = db.get_observations("us_gdp", since=start)
