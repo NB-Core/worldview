@@ -12,7 +12,6 @@ import responses
 
 from worldview.fetchers import FetchError
 from worldview.fetchers.aaii import AAII_URL, AAIIFetcher
-from worldview.fetchers.naaim import INDEX_PAGE as NAAIM_INDEX_PAGE, NAAIMFetcher
 from worldview.fetchers.ishares import (
     ISHARES_RECIPES,
     IVV_URL,
@@ -21,6 +20,8 @@ from worldview.fetchers.ishares import (
     parse_ishares_holdings,
     parse_ssga_spy_holdings,
 )
+from worldview.fetchers.naaim import INDEX_PAGE as NAAIM_INDEX_PAGE
+from worldview.fetchers.naaim import NAAIMFetcher
 from worldview.models import Cadence, Category, Metric, Polarity
 
 
@@ -85,7 +86,8 @@ def test_aaii_raises_on_missing_columns():
     ws = wb.active
     ws.append(["Wrong", "Columns"])
     ws.append(["x", "y"])
-    out = io.BytesIO(); wb.save(out)
+    out = io.BytesIO()
+    wb.save(out)
     responses.add(responses.GET, AAII_URL, body=out.getvalue(), status=200)
     with pytest.raises(FetchError):
         AAIIFetcher().fetch(_metric("aaii"), date(2024, 1, 1))
@@ -122,7 +124,8 @@ def _make_naaim_xlsx(rows: list[tuple[str, float]]) -> bytes:
     ws.append(["Date", "NAAIM Number Mean", "Bullish 8 wk Mov Avg"])
     for d, mean in rows:
         ws.append([d, mean, mean - 1])
-    out = io.BytesIO(); wb.save(out)
+    out = io.BytesIO()
+    wb.save(out)
     return out.getvalue()
 
 

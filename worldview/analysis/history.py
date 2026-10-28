@@ -99,6 +99,8 @@ def historical_overall_score(
     fields,
     weights: dict[str, float],
     sentiment_mode: str = "penalize_greed",
+    *,
+    verified_only: bool = True,
 ) -> pd.DataFrame:
     """Compute the overall field's Valuation/Sentiment/MacroRisk + Worldview Score
     over time.
@@ -110,7 +112,22 @@ def historical_overall_score(
     Joined on date intersection of inputs (dates where all relevant metrics
     have an observation; missing days drop out cleanly).
     """
-    from ..analysis.composite import _POLARITY_ORIENTATION
+
+    if verified_only:
+        import json
+        with db.connect() as conn:
+            rows = conn.execute("SELECT captured_at, payload FROM score_snapshots WHERE model_version='v2' ORDER BY captured_at").fetchall()
+        if rows:
+            from .composite import FieldScore, worldview_score
+            records = []
+            for row in rows:
+                values = json.loads(row[1]).get("overall", {})
+                fs = FieldScore("overall", "Overall", values.get("valuation"), values.get("sentiment"), values.get("macro_risk"), "N/A", {})
+                records.append({"date": pd.Timestamp(row[0][:10]), "valuation": fs.valuation,
+                                "sentiment": fs.sentiment, "macro_risk": fs.macro_risk,
+                                "worldview_score": json.loads(row[1]).get("_worldview_score", worldview_score(fs, weights, sentiment_mode))})
+            recorded = pd.DataFrame(records).set_index("date")
+            return recorded.loc[~recorded.index.duplicated(keep="last")]
 
     overall = fields.get("overall")
     if overall is None:
@@ -118,7 +135,7 @@ def historical_overall_score(
             columns=["valuation", "sentiment", "macro_risk", "worldview_score"]
         )
 
-    def _block_series(metric_ids: list[str]) -> pd.Series:
+    def _block_series(metric_ids: list[str], block: str) -> pd.Series:
         """Weighted-average expanding percentile (polarity-oriented) for a block."""
         ids = [mid for mid in metric_ids if mid in metrics_by_id]
         if not ids:
@@ -127,12 +144,24 @@ def historical_overall_score(
         oriented: list[pd.Series] = []
         weights_seq: list[float] = []
         for mid in ids:
-            obs = db.get_observations(mid)
+            metric = metrics_by_id[mid]
+            # Legacy store has no release timestamps or revision vintages.
+            # Daily traded prices are the only supported observation-date inputs.
+            if verified_only and (metric.source != "yfinance" or metric.cadence.value != "daily"):
+                continue
+            obs = db.get_observations(mid).sort_index()
+            if obs.empty:
+                continue
+            obs = obs.loc[obs.index <= pd.Timestamp(date.today())]
             if obs.empty:
                 continue
             pct = expanding_percentiles(obs)
+            pct.iloc[:metric.min_history] = float("nan")
             metric = metrics_by_id[mid]
-            _, sign = _POLARITY_ORIENTATION.get(metric.polarity, ("", +1))
+            sign = metric.score_directions.get(block)
+            if sign is None:
+                from .composite import _POLARITY_ORIENTATION
+                sign = _POLARITY_ORIENTATION[metric.polarity][1]
             if sign == -1:
                 pct = 100.0 - pct
             pct.name = mid
@@ -145,16 +174,21 @@ def historical_overall_score(
         wide = pd.concat(oriented, axis=1)
         # Forward-fill so a metric reported only weekly still contributes
         # on intervening daily rows.
-        wide = wide.sort_index().ffill().dropna(how="all")
+        from .scoring import max_age_days
+        wide = wide.sort_index()
+        for mid in wide.columns:
+            dates = pd.Series(wide.index, index=wide.index).where(wide[mid].notna()).ffill()
+            wide[mid] = wide[mid].ffill().where((wide.index.to_series() - dates).dt.days <= max_age_days(metrics_by_id[mid]))
+        wide = wide.dropna(how="all")
         w = pd.Series(weights_seq, index=[s.name for s in oriented])
         # weighted mean per row, ignoring NaN cells
         numerator = (wide * w).sum(axis=1, min_count=1)
         denominator = wide.notna().mul(w, axis=1).sum(axis=1)
         return (numerator / denominator).dropna()
 
-    val = _block_series(overall.valuation)
-    sent = _block_series(overall.sentiment)
-    risk = _block_series(overall.macro_risk)
+    val = _block_series(overall.valuation, "valuation")
+    sent = _block_series(overall.sentiment, "sentiment")
+    risk = _block_series(overall.macro_risk, "macro_risk")
 
     out = pd.concat(
         {"valuation": val, "sentiment": sent, "macro_risk": risk}, axis=1

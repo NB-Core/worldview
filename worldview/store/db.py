@@ -8,10 +8,10 @@ the project talks to the DB.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Iterable, Iterator
 
 import pandas as pd
 
@@ -262,6 +262,44 @@ class Database:
                 "UPDATE runs SET finished_at = ?, status = ?, log = ? WHERE run_id = ?",
                 (_utcnow_iso(), status, log, run_id),
             )
+
+    def save_score_snapshot(self, payload: dict) -> None:
+        import json
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO score_snapshots VALUES (?, ?, ?)",
+                (_utcnow_iso(), "v2", json.dumps(payload, allow_nan=False)),
+            )
+
+    def score_changes(self, current: dict, today: date, worldview: float | None = None) -> dict:
+        import json
+        from datetime import timedelta
+        result: dict[str, dict | None] = {}
+        with self.connect() as conn:
+            for days in (7, 14, 30):
+                target = today - timedelta(days=days)
+                row = conn.execute(
+                    "SELECT captured_at, payload FROM score_snapshots WHERE model_version='v2' "
+                    "AND substr(captured_at,1,10) <= ? ORDER BY captured_at DESC LIMIT 1",
+                    (target.isoformat(),),
+                ).fetchone()
+                if row is None or (target - date.fromisoformat(row[0][:10])).days > 3:
+                    result[str(days)] = None
+                    continue
+                old = json.loads(row[1])
+                entry: dict = {'as_of': row[0], 'fields': {}, 'worldview_delta': None if worldview is None or old.get('_worldview_score') is None else worldview - old['_worldview_score']}
+                result[str(days)] = entry
+                for fid, now in current.items():
+                    before = old.get(fid, {})
+                    delta = {b: None if now.get(b) is None or before.get(b) is None else now[b] - before[b]
+                             for b in ('valuation', 'sentiment', 'macro_risk')}
+                    moves = [abs(v) for v in delta.values() if v is not None]
+                    entry['fields'][fid] = {
+                        'delta': delta, 'previous_regime': before.get('regime'),
+                        'regime': now.get('regime'),
+                        'small_move': bool(moves) and max(moves) <= 2,
+                    }
+        return result
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

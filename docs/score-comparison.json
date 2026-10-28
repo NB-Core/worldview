@@ -1,0 +1,191 @@
+{
+  "database_as_of": "2026-05-13",
+  "legacy_v1": {
+    "worldview_score": 16.718244383631315,
+    "fields": {
+      "overall": {
+        "valuation": 92.83921405533675,
+        "sentiment": 70.77720827554874,
+        "macro_risk": 83.04302503856454,
+        "quadrant": "BUBBLE"
+      },
+      "ai": {
+        "valuation": 91.65223040277176,
+        "sentiment": 91.08150048667628,
+        "macro_risk": 85.7933498179418,
+        "quadrant": "BUBBLE"
+      },
+      "construction": {
+        "valuation": 87.41879601559116,
+        "sentiment": 90.01732351667388,
+        "macro_risk": 59.03760463162317,
+        "quadrant": "BUBBLE"
+      },
+      "finance": {
+        "valuation": 97.08277133508346,
+        "sentiment": 89.18830673222762,
+        "macro_risk": 65.34773890641058,
+        "quadrant": "BUBBLE"
+      },
+      "energy": {
+        "valuation": 83.75770220406959,
+        "sentiment": 88.77862595419847,
+        "macro_risk": 85.97606197937272,
+        "quadrant": "BUBBLE"
+      },
+      "defense": {
+        "valuation": 97.87983778888932,
+        "sentiment": 47.651006711409394,
+        "macro_risk": 98.91126025354214,
+        "quadrant": "TRAP"
+      },
+      "defensive": {
+        "valuation": 78.35318319618882,
+        "sentiment": 60.455591716974126,
+        "macro_risk": 91.7526610175101,
+        "quadrant": "BUBBLE"
+      }
+    }
+  },
+  "polarity_only": {
+    "worldview_score": 22.512034088359,
+    "fields": {
+      "overall": {
+        "valuation": 92.83921405533675,
+        "sentiment": 70.77720827554874,
+        "macro_risk": 63.73039268947224,
+        "quadrant": "BUBBLE"
+      },
+      "ai": {
+        "valuation": 91.65223040277176,
+        "sentiment": 91.08150048667628,
+        "macro_risk": 51.43085696488291,
+        "quadrant": "BUBBLE"
+      },
+      "construction": {
+        "valuation": 87.41879601559116,
+        "sentiment": 90.01732351667388,
+        "macro_risk": 59.03760463162317,
+        "quadrant": "BUBBLE"
+      },
+      "finance": {
+        "valuation": 97.08277133508346,
+        "sentiment": 89.18830673222762,
+        "macro_risk": 46.448367837228204,
+        "quadrant": "BUBBLE"
+      },
+      "energy": {
+        "valuation": 83.75770220406959,
+        "sentiment": 88.77862595419847,
+        "macro_risk": 85.97606197937272,
+        "quadrant": "BUBBLE"
+      },
+      "defense": {
+        "valuation": 97.87983778888932,
+        "sentiment": 47.651006711409394,
+        "macro_risk": 98.91126025354214,
+        "quadrant": "TRAP"
+      },
+      "defensive": {
+        "valuation": 78.35318319618882,
+        "sentiment": 36.02091835013996,
+        "macro_risk": 59.353739184626,
+        "quadrant": "TRAP"
+      }
+    }
+  },
+  "v2_at_database_date": {
+    "worldview_score": 20.794550210088893,
+    "fields": {
+      "overall": {
+        "valuation": 97.13292375101203,
+        "sentiment": 70.77720827554874,
+        "macro_risk": 63.73039268947224,
+        "quadrant": "BUBBLE"
+      },
+      "ai": {
+        "valuation": null,
+        "sentiment": 91.08150048667628,
+        "macro_risk": 51.43085696488291,
+        "quadrant": "N/A"
+      },
+      "construction": {
+        "valuation": null,
+        "sentiment": 90.01732351667388,
+        "macro_risk": 59.03760463162317,
+        "quadrant": "N/A"
+      },
+      "finance": {
+        "valuation": null,
+        "sentiment": 89.18830673222762,
+        "macro_risk": 55.00071421573375,
+        "quadrant": "N/A"
+      },
+      "energy": {
+        "valuation": null,
+        "sentiment": 88.77862595419847,
+        "macro_risk": 85.97606197937272,
+        "quadrant": "N/A"
+      },
+      "defense": {
+        "valuation": null,
+        "sentiment": 47.651006711409394,
+        "macro_risk": 98.91126025354214,
+        "quadrant": "N/A"
+      },
+      "defensive": {
+        "valuation": null,
+        "sentiment": 36.02091835013996,
+        "macro_risk": 59.353739184626,
+        "quadrant": "N/A"
+      }
+    }
+  },
+  "v2_today": {
+    "worldview_score": null,
+    "fields": {
+      "overall": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      },
+      "ai": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      },
+      "construction": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      },
+      "finance": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      },
+      "energy": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      },
+      "defense": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      },
+      "defensive": {
+        "valuation": null,
+        "sentiment": null,
+        "macro_risk": null,
+        "quadrant": "N/A"
+      }
+    }
+  }
+}

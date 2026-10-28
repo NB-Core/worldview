@@ -74,8 +74,17 @@ def load_settings(env_file: Path | None = None) -> Settings:
 # ── Metric registry ───────────────────────────────────────────────────────────
 
 
+def _parse_directions(raw: dict) -> dict[str, int]:
+    if any(k not in {"valuation", "sentiment", "macro_risk", "price_momentum"}
+           or type(v) is not int or v not in {-1, 1} for k, v in raw.items()):
+        raise ValueError("score_directions requires block: +1 or -1")
+    return dict(raw)
+
+
 def _parse_metric(row: dict) -> Metric:
     """Parse one YAML row into a `Metric`. Raises `ValueError` on bad input."""
+    if int(row.get("min_history", 20)) < 1 or (row.get("max_age_days") is not None and row["max_age_days"] < 1):
+        raise ValueError("history and age limits must be positive")
     try:
         return Metric(
             id=row["id"],
@@ -88,6 +97,9 @@ def _parse_metric(row: dict) -> Metric:
             weight=float(row.get("weight", 1.0)),
             flag_high_pct=row.get("flag_high_pct"),
             flag_low_pct=row.get("flag_low_pct"),
+            min_history=int(row.get("min_history", 20)),
+            max_age_days=row.get("max_age_days"),
+            score_directions=_parse_directions(row.get("score_directions", {})),
             notes=row.get("notes", "") or "",
         )
     except KeyError as e:
@@ -131,6 +143,8 @@ def load_fields(path: Path | None = None) -> dict[str, FieldDef]:
             label=fdef.get("label", fid),
             valuation=list(fdef.get("valuation") or []),
             sentiment=list(fdef.get("sentiment") or []),
+            price_momentum=list(fdef.get("price_momentum") or []),
+            concentration=list(fdef.get("concentration") or []),
             macro_risk=list(fdef.get("macro_risk") or []),
         )
     return out

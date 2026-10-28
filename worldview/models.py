@@ -6,12 +6,13 @@ that travel between fetchers, the store, and the analysis layer.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from datetime import date
 from enum import Enum
 
 
-class Category(str, Enum):
+class Category(str, Enum):  # noqa: UP042 -- preserve Enum string representation
     """Top-level metric bucket."""
 
     VALUATION = "valuation"
@@ -22,7 +23,7 @@ class Category(str, Enum):
     BREADTH = "breadth"
 
 
-class Cadence(str, Enum):
+class Cadence(str, Enum):  # noqa: UP042 -- preserve Enum string representation
     """How often the underlying source publishes new data."""
 
     DAILY = "daily"
@@ -31,7 +32,7 @@ class Cadence(str, Enum):
     QUARTERLY = "quarterly"
 
 
-class Polarity(str, Enum):
+class Polarity(str, Enum):  # noqa: UP042 -- preserve Enum string representation
     """What it means when this metric prints HIGH.
 
     Used by the composite layer to flip percentiles where needed:
@@ -64,6 +65,9 @@ class Metric:
     flag_high_pct: float | None = None
     flag_low_pct: float | None = None
     notes: str = ""
+    min_history: int = 20
+    max_age_days: int | None = None
+    score_directions: dict[str, int] = dc_field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,9 +85,11 @@ class FieldDef:
 
     id: str
     label: str
-    valuation: list[str] = field(default_factory=list)
-    sentiment: list[str] = field(default_factory=list)
-    macro_risk: list[str] = field(default_factory=list)
+    valuation: list[str] = dc_field(default_factory=list)
+    sentiment: list[str] = dc_field(default_factory=list)
+    macro_risk: list[str] = dc_field(default_factory=list)
+    price_momentum: list[str] = dc_field(default_factory=list)
+    concentration: list[str] = dc_field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)

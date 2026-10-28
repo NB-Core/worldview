@@ -18,8 +18,8 @@ then derived fetchers — same code path, no special-casing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 import pandas as pd
 
@@ -58,17 +58,11 @@ def _diff(left_id: str, right_id: str) -> Recipe:
 
 # Public registry. Keys are what shows up in `metric.source_ref`.
 def _sp500_div_gdp(db: Database, start: date) -> pd.Series:
-    """Buffett Indicator proxy: S&P 500 / nominal US GDP.
+    """Legacy S&P index-level / nominal GDP proxy, NOT market-cap / GDP.
 
-    Originally Buffett used the Wilshire 5000 / GDP, but FRED has retired
-    every public Wilshire series in 2026 ("the series does not exist"), so
-    we use the S&P 500 as the numerator instead. The S&P 500 is ~85-90% of
-    US total equity market cap; the difference is a near-constant scaling
-    factor that drops out of percentile rankings, which is the only way we
-    use this ratio anyway.
-
-    GDP is quarterly; we forward-fill onto the daily S&P grid so the ratio
-    updates intra-quarter as the market moves.
+    The index divisor changes; historical ranks are not equivalent to a Buffett
+    indicator. Retained solely for legacy comparisons; excluded from valuation.
+    GDP observation dates are period dates, not verified release dates.
     """
     p = db.get_observations("sp500_close", since=start)
     g = db.get_observations("us_gdp", since=start)
@@ -106,12 +100,28 @@ def _hy_minus_ig(db: Database, start: date) -> pd.Series:
     return _diff("hy_oas_us", "ig_oas_us")(db, start)
 
 
+def _us_market_cap_div_gdp(db: Database, start: date) -> pd.Series:
+    """Quarterly public-equity cap (millions) / GDP SAAR (billions), percent.
+
+    Join identical reference periods only. No interpolation, no index fallback,
+    no assertion that reference dates are publication dates.
+    """
+    cap = db.get_observations("us_equity_market_cap", since=start)
+    gdp = db.get_observations("us_gdp", since=start)
+    if cap.empty or gdp.empty:
+        return pd.Series(dtype=float)
+    data = pd.concat({"cap": cap, "gdp": gdp}, axis=1).dropna()
+    data = data[(data["gdp"] > 0) & (data["cap"] > 0)]
+    return (data["cap"] / 1000.0 / data["gdp"] * 100.0).rename("us_market_cap_gdp")
+
+
 RECIPES: dict[str, Recipe] = {
     "xlk_div_xlu":              _ratio("xlk", "xlu"),
     "gold_div_copper":          _ratio("gold", "copper"),
     "gold_div_brent":           _ratio("gold", "brent"),
     "italy_minus_bund":         _diff("it_10y", "de_10y"),
     "rsp_div_spy":              _ratio("rsp", "spy"),
+    "us_market_cap_div_gdp": _us_market_cap_div_gdp,
     "sp500_div_gdp":            _sp500_div_gdp,
     "earnings_yield_minus_10y": _earnings_yield_minus_10y,
     "hy_minus_ig":              _hy_minus_ig,

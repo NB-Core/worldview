@@ -20,7 +20,6 @@ from worldview.models import (
     Polarity,
 )
 
-
 # ── percentile_rank ───────────────────────────────────────────────────────────
 
 def test_percentile_rank_basic():

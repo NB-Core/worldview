@@ -14,8 +14,8 @@ import pandas as pd
 from ..config import Settings
 from ..models import Metric
 from ..store import Database
-from .base import Fetcher, FetchError
 from .aaii import AAIIFetcher
+from .base import Fetcher, FetchError
 from .cnn_fng import CNNFearGreedFetcher
 from .derived import DerivedFetcher
 from .fred import FREDFetcher
@@ -26,7 +26,7 @@ from .naaim import NAAIMFetcher
 from .yfinance_fetcher import YFinanceFetcher
 
 
-class UnsupportedSource(FetchError):
+class UnsupportedSource(FetchError):  # noqa: N818 -- public compatibility
     """The metric's `source` has no fetcher wired up yet."""
 
 

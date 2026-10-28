@@ -1,0 +1,154 @@
+# Field definitions: how metrics roll up into per-field 2×2 quadrants.
+#
+# Each field has three buckets — valuation, sentiment, macro_risk — each a
+# weighted blend of metric percentiles. See analysis/composite.py.
+#
+# A metric can appear in multiple fields (e.g. HY OAS contributes to overall
+# AND finance macro_risk).
+
+fields:
+
+  overall:
+    label: "Overall market"
+    valuation:
+      - buffett_indicator
+      - shiller_cape_us
+      - sp500_pe
+      - sp500_div_yield
+      - equity_risk_premium
+      - rsp_spy_ratio
+      - sp500_top10_share
+      - sp500_mag7_share
+    sentiment:
+      - vix
+      - vvix
+      - move
+      - cnn_fear_greed
+      - aaii_bull_bear_spread
+      - naaim_exposure
+      - hy_oas_us
+      - ig_oas_us
+      - hy_minus_ig_oas
+      - btc_usd
+      - mstr
+    macro_risk:
+      - hy_oas_us
+      - hy_minus_ig_oas
+      - us_2s10s
+      - us_3m10y
+      - us_real_10y
+      - dxy
+      - eur_usd
+      - ny_fed_recession_prob
+      - gpr_daily
+      - gold_copper_ratio
+
+  ai:
+    label: "AI / Semis"
+    valuation:
+      - smh
+      - nvda
+      - nvda_sp500_share
+    sentiment:
+      - xlk
+      - xlk_xlu_ratio
+      - arkk
+      - cnn_fear_greed
+    macro_risk:
+      - hy_oas_us
+      - us_real_10y
+      - dxy
+
+  construction:
+    label: "Building & Construction"
+    valuation:
+      - itb
+    sentiment:
+      - xhb
+    macro_risk:
+      - mortgage_30y
+      - housing_starts
+      - building_permits
+      - lumber
+      - us_10y
+
+  finance:
+    label: "Finance / Banks"
+    valuation:
+      - xlf
+      - kre
+      - kbe
+      - eufn
+    sentiment:
+      - hy_oas_us
+      - eu_hy_oas
+      - hy_minus_ig_oas
+    macro_risk:
+      - us_2s10s
+      - us_3m10y
+      - hy_oas_us
+      - italy_bund_spread
+      - ny_fed_recession_prob
+      - sofr
+
+  energy:
+    label: "Energy"
+    valuation:
+      - xle
+      - xop
+      - brent
+      - wti
+      - ttf_gas_eu
+    sentiment:
+      - copper
+      - cnn_fear_greed
+    macro_risk:
+      - gpr_daily
+      - dxy
+      - gold_oil_ratio
+      - ttf_gas_eu
+
+  defense:
+    label: "Defense"
+    valuation:
+      - ita
+      - lmt
+      - rtx
+    sentiment:
+      - vix
+    macro_risk:
+      - gpr_daily
+
+  defensive:
+    label: "Safe-haven / defensives"
+    valuation:
+      - gold
+      - silver
+      - tlt
+      - xlp
+      - xlv
+    sentiment:
+      - chf_usd
+      - vix
+    macro_risk:
+      - hy_oas_us
+      - us_real_10y
+      - gpr_daily
+
+# Top-level Worldview Score weights (overall field only).
+worldview_score_weights:
+  valuation: 0.4
+  sentiment: 0.3
+  macro_risk: 0.3
+
+# How the sentiment percentile contributes to the Worldview Score.
+#
+#   penalize_greed (default, Buffett-aligned):
+#     100 - sentiment. Fear → helps. Greed → hurts. Macro_risk separately
+#     captures "but is the system breaking?" so we don't double-count.
+#
+#   penalize_extremes (legacy):
+#     100 - 2*|sentiment-50|. Rewards neutral, punishes both ends.
+#     Mathematically smooth but historically punished March 2009 / March 2020
+#     style bottoms — exactly when you wanted to be buying.
+worldview_sentiment_mode: penalize_greed

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,6 @@ from worldview.analysis.history import (
     expanding_percentiles,
 )
 from worldview.models import Cadence, Category, Metric, Polarity
-
 
 # ── expanding_percentiles ─────────────────────────────────────────────────────
 

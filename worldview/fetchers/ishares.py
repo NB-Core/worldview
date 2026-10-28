@@ -200,7 +200,7 @@ def parse_ishares_holdings(text: str) -> dict[str, float]:
     reader = csv.DictReader(io.StringIO(body))
 
     # Column names vary slightly; locate the weight column.
-    weight_col = _pick_column(reader.fieldnames or [], (
+    weight_col = _pick_column(list(reader.fieldnames or []), (
         "Weight (%)", "Weight(%)", "Weight", "% of Net Assets",
     ))
     ticker_col = "Ticker"
